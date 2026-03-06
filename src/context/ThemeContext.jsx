@@ -7,15 +7,14 @@ export function ThemeProvider({ children }) {
     () => localStorage.getItem('ct-theme') || 'dark'
   )
 
-  // When theme changes, update the data-theme attribute on <html>
-  // This activates the correct CSS token set in index.css
   useEffect(() => {
+    // This one line updates every CSS variable instantly
+    // No component re-renders needed
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('ct-theme', theme)
   }, [theme])
 
-  const toggleTheme = () =>
-    setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
@@ -23,9 +22,5 @@ export function ThemeProvider({ children }) {
     </ThemeContext.Provider>
   )
 }
-
-export const useTheme = () => {
-  const ctx = useContext(ThemeContext)
-  if (!ctx) throw new Error('useTheme must be used inside ThemeProvider')
-  return ctx
-}
+// eslint-disable-next-line react-refresh/only-export-components
+export const useTheme = () => useContext(ThemeContext)

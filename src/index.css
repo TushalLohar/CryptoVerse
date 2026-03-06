@@ -1,27 +1,57 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap');
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: 'Inter', sans-serif;
-  background: #0d0f1a;
-  color: #f0f2ff;
+  background: var(--bg-base);
+  color: var(--text1);
   -webkit-font-smoothing: antialiased;
   font-size: 14px;
   line-height: 1.5;
+  transition: background 0.2s, color 0.2s;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2a2f4a; border-radius: 999px; }
+::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 999px; }
 
+/* ── Dark theme (default) ── */
 :root {
-  --ff-display: 'Space Grotesk', sans-serif;
-  --ff-mono: 'ui-monospace', 'SFMono-Regular', monospace;
+  --bg-base:     #0d0f1a;
+  --bg-elevated: #13162a;
+  --bg-hover:    #1e2235;
+  --text1:       #f0f2ff;
+  --text2:       #a0a8c0;
+  --text3:       #5a6080;
+  --text4:       #353850;
+  --border:      #1e2235;
+  --border-md:   #2a2f4a;
+  --blue:        #3d8ef8;
+  --green:       #22c55e;
+  --red:         #f43f5e;
+  --gold:        #f59e0b;
+  --shadow-lg:   0 8px 32px rgba(0,0,0,0.6);
+  --ff-display:  'Space Grotesk', sans-serif;
+  --ff-mono:     'ui-monospace', 'SFMono-Regular', monospace;
+}
+
+/* ── Light theme ── */
+[data-theme="light"] {
+  --bg-base:     #f4f6fb;
+  --bg-elevated: #ffffff;
+  --bg-hover:    #f0f2f8;
+  --text1:       #0d0f1a;
+  --text2:       #3a4060;
+  --text3:       #7a82a0;
+  --text4:       #b0b8d0;
+  --border:      #e8eaf2;
+  --border-md:   #d0d4e8;
+  --blue:        #3d8ef8;
+  --green:       #16a34a;
+  --red:         #dc2626;
+  --gold:        #d97706;
+  --shadow-lg:   0 8px 32px rgba(0,0,0,0.12);
 }
 
 @keyframes shimmer {
@@ -33,21 +63,15 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes flashUp {
-  0%   { background-color: rgba(34, 197, 94, 0.25); }
+  0%   { background-color: rgba(34,197,94,0.25); }
   100% { background-color: transparent; }
 }
 @keyframes flashDown {
-  0%   { background-color: rgba(244, 63, 94, 0.25); }
+  0%   { background-color: rgba(244,63,94,0.25); }
   100% { background-color: transparent; }
 }
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.95); }
   to   { opacity: 1; transform: scale(1); }
-}
-@keyframes tickerScroll {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
 }

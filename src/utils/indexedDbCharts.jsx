@@ -1,5 +1,3 @@
-// src/utils/indexedDbCharts.js
-
 const DB_NAME    = 'ct_charts_v1'
 const STORE_NAME = 'charts'
 

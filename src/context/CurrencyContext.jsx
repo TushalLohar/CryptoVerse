@@ -3,6 +3,7 @@ import { createContext, useContext, useState } from 'react'
 const CurrencyContext = createContext()
 
 // All supported currencies
+// eslint-disable-next-line react-refresh/only-export-components
 export const CURRENCIES = [
   { code: 'usd', symbol: '$',  label: 'USD' },
   { code: 'inr', symbol: '₹',  label: 'INR' },
@@ -30,4 +31,5 @@ export function CurrencyProvider({ children }) {
 }
 
 // Custom hook — any component calls useCurrency() to get currency + setCurrency
+// eslint-disable-next-line react-refresh/only-export-components
 export const useCurrency = () => useContext(CurrencyContext)

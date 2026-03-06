@@ -1,22 +1,19 @@
+// Every color is now a CSS variable reference
+// When data-theme changes on <html>, these all update automatically
+// Zero React re-renders needed
 export const C = {
-  bgBase:     '#0d0f1a',
-  bgElevated: '#13162a',
-  bgHover:    '#1e2235',
-
-  text1: '#f0f2ff',
-  text2: '#a0a8c0',
-  text3: '#5a6080',
-  text4: '#353850',
-
-  border:   '#1e2235',
-  borderMd: '#2a2f4a',
-
-  blue:   '#3d8ef8',
-  green:  '#22c55e',
-  red:    '#f43f5e',
-  gold:   '#f59e0b',
-  purple: '#a855f7',
-
-  shadowSm: '0 1px 3px rgba(0,0,0,0.4)',
-  shadowLg: '0 8px 32px rgba(0,0,0,0.6)',
+  bgBase:     'var(--bg-base)',
+  bgElevated: 'var(--bg-elevated)',
+  bgHover:    'var(--bg-hover)',
+  text1:      'var(--text1)',
+  text2:      'var(--text2)',
+  text3:      'var(--text3)',
+  text4:      'var(--text4)',
+  border:     'var(--border)',
+  borderMd:   'var(--border-md)',
+  blue:       'var(--blue)',
+  green:      'var(--green)',
+  red:        'var(--red)',
+  gold:       'var(--gold)',
+  shadowLg:   'var(--shadow-lg)',
 }
