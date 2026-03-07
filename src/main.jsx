@@ -1,6 +1,6 @@
 import { createRoot }     from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
-import './index.css'
+import "./index.css"
 import { router }           from './app/routes'
 import { ThemeProvider }    from './context/ThemeContext'
 import { CurrencyProvider } from './context/CurrencyContext'

@@ -1,396 +1,229 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { BarChart2, ChevronDown, Search, X, Loader2 } from "lucide-react";
-import { C } from "../utils/theme";
+import {
+  BarChart2,
+  ChevronDown,
+  Search,
+  X,
+  Loader2,
+  Sun,
+  Moon,
+} from "lucide-react";
 import { useCurrency, CURRENCIES } from "../context/CurrencyContext";
+import { useTheme } from "../context/ThemeContext";
 import { fetchSearch } from "../utils/marketAPI";
-import { Sun, Moon } from 'lucide-react'
-import { useTheme }  from '../context/ThemeContext'
-import { Bell } from "lucide-react";
 
 const PRIMARY_NAV = [
-  { to: '/',          label: 'Markets'   },
-  { to: '/trending',  label: 'Trending'  },
-  { to: '/gainers',   label: 'Movers'    },
-  { to: '/watchlist', label: 'Watchlist' },
-  { to: '/portfolio', label: 'Portfolio' },
-  { to: '/ai',        label: 'AI Chat'   },
-]
+  { to: "/", label: "Markets" },
+  { to: "/trending", label: "Trending" },
+  { to: "/gainers", label: "Movers" },
+  { to: "/watchlist", label: "Watchlist" },
+  { to: "/portfolio", label: "Portfolio" },
+  { to: "/ai", label: "AI Chat" },
+];
 
 const MORE_NAV = [
-  { to: '/alerts',       label: '🔔 Alerts'     },
-  { to: '/compare',      label: '⚖️ Compare'    },
-  { to: '/screener',     label: '🔍 Screener'   },
-  { to: '/heatmap',      label: '🟩 Heatmap'    },
-  { to: '/whale-alerts', label: '🐋 Whales'     },
-  { to: '/gas',          label: '⛽ Gas Tracker' },
-  { to: '/onchain',      label: '🔗 On-Chain'   },
-  { to: '/defi',         label: '🏦 DeFi'       },
-  { to: '/order-book',   label: '📊 Order Book' },
-  { to: '/arbitrage',    label: '💱 Arbitrage'  },
-  { to: '/game',         label: '🎮 Game'        },
-  { to: '/backtest',     label: '📈 Backtest'   },
-]
+  { to: "/alerts", label: "🔔 Alerts" },
+  { to: "/compare", label: "⚖️ Compare" },
+  { to: "/screener", label: "🔍 Screener" },
+  { to: "/heatmap", label: "🟩 Heatmap" },
+  { to: "/whale-alerts", label: "🐋 Whales" },
+  { to: "/gas", label: "⛽ Gas Tracker" },
+  { to: "/onchain", label: "🔗 On-Chain" },
+  { to: "/defi", label: "🏦 DeFi" },
+  { to: "/order-book", label: "📊 Order Book" },
+  { to: "/arbitrage", label: "💱 Arbitrage" },
+  { to: "/game", label: "🎮 Game" },
+  { to: "/backtest", label: "📈 Backtest" },
+];
 
 export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { currency, setCurrency } = useCurrency();
-  const [moreOpen, setMoreOpen] = useState(false)
+  const { theme, toggleTheme } = useTheme();
 
-  // ── Currency dropdown ──
+  const [moreOpen, setMoreOpen] = useState(false);
   const [showCurrency, setShowCurrency] = useState(false);
-  const currencyRef = useRef(null);
-
-  // ── Search ──
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
+
   const searchRef = useRef(null);
+  const currencyRef = useRef(null);
+
+  const activeCurrency = CURRENCIES.find((c) => c.code === currency);
 
   // Close dropdowns on outside click
   useEffect(() => {
     const handleClick = (e) => {
-      if (currencyRef.current && !currencyRef.current.contains(e.target)) {
+      if (currencyRef.current && !currencyRef.current.contains(e.target))
         setShowCurrency(false);
-      }
-      if (searchRef.current && !searchRef.current.contains(e.target)) {
+      if (searchRef.current && !searchRef.current.contains(e.target))
         setShowResults(false);
-      }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Debounced search — waits 350ms after user stops typing
-  // Why debounce? Without it: every single keystroke = API call
-  // With debounce: only fires 350ms after user pauses typing
+  // Debounced Search Logic
   useEffect(() => {
-    // If query is too short, don't search
     if (query.length < 2) {
+      setResults([]);
       return;
     }
-
-    // Set a timer — if query changes before 350ms, this timer is cancelled
     const timer = setTimeout(async () => {
       setSearching(true);
       setShowResults(true);
-      const { data } = await fetchSearch(query);
-      setResults((data?.coins || []).slice(0, 8));
-      setSearching(false);
+      try {
+        const { data } = await fetchSearch(query);
+        setResults((data?.coins || []).slice(0, 8));
+      } catch (err) {
+        console.error("Search failed", err);
+      } finally {
+        setSearching(false);
+      }
     }, 350);
 
-    // Cleanup — cancel the previous timer on every keystroke and clear results
-    return () => {
-      clearTimeout(timer);
-      setResults([]);
-      setShowResults(false);
-    };
+    return () => clearTimeout(timer);
   }, [query]);
 
-  const activeCurrency = CURRENCIES.find((c) => c.code === currency);
-
-  // When user clicks a search result
-  const handleSelect = (coinId) => {
-    navigate(`/coin/${coinId}`);
-    setQuery("");
-    setResults([]);
-    setShowResults(false);
-  };
-
-  // Press Escape to close search
-  useEffect(() => {
-    const handleKey = (e) => {
-      if (e.key === "Escape") {
-        setShowResults(false);
-        setQuery("");
-      }
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, []);
-const { theme, toggleTheme } = useTheme()
   return (
-    <header
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 52,
-        background: C.bgElevated,
-        borderBottom: `1px solid ${C.borderMd}`,
-        zIndex: 100,
-        backdropFilter: "blur(12px)",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1400,
-          margin: "0 auto",
-          height: "100%",
-          padding: "0 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
+    <header className="fixed top-0 left-0 right-0 h-13 bg-bg-elevated/80 backdrop-blur-md border-b border-border-md z-100 transition-all">
+      <div className="max-w-350 mx-auto h-full px-5 flex items-center gap-2">
         {/* Logo */}
-        <Link
-          to="/"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            textDecoration: "none",
-            marginRight: 16,
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: C.blue,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <BarChart2 size={15} color="#fff" strokeWidth={2.5} />
+        <Link to="/" className="flex items-center gap-2 mr-4 shrink-0 group">
+          <div className="w-7 h-7 rounded-lg bg-crypto-blue flex items-center justify-center shadow-glow group-hover:scale-110 transition-transform">
+            <BarChart2 size={15} className="text-white" strokeWidth={2.5} />
           </div>
-          <span
-            style={{
-              color: C.text1,
-              fontFamily: "var(--ff-display)",
-              fontWeight: 800,
-              fontSize: 13,
-              letterSpacing: "0.1em",
-            }}
-          >
-            CRYPTOTRACKER
+          <span className="text-text-1 font-display font-extrabold text-[13px] tracking-widest uppercase">
+            CryptoTracker
           </span>
         </Link>
 
-        {/* Nav */}
-        <nav className="desktop-nav" style={{ display: "flex", alignItems: "center", gap: 2 }}>
-  {PRIMARY_NAV.map(({ to, label }) => (
-    <NavLink key={to} to={to} isActive={location.pathname === to}>
-      {label}
-    </NavLink>
-  ))}
+        {/* Primary Navigation */}
+        <nav className="hidden lg:flex items-center gap-1">
+          {PRIMARY_NAV.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              active={location.pathname === link.to}
+            >
+              {link.label}
+            </NavLink>
+          ))}
 
-  {/* More dropdown */}
-  <div style={{ position: 'relative' }}>
-    <button
-      onClick={() => setMoreOpen(o => !o)}
-      style={{
-        display:    'flex',
-        alignItems: 'center',
-        gap:        4,
-        padding:    '5px 12px',
-        borderRadius: 8,
-        border:     'none',
-        fontSize:   13,
-        fontWeight: 600,
-        color:      MORE_NAV.some(n => n.to === location.pathname) || moreOpen
-          ? C.blue : C.text2,
-        background: MORE_NAV.some(n => n.to === location.pathname) || moreOpen
-          ? 'rgba(61,142,248,0.10)' : 'transparent',
-        cursor:     'pointer',
-        transition: 'all 0.15s',
-      }}
-    >
-      More
-      <ChevronDown size={12} style={{
-        transform:  moreOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-        transition: 'transform 0.2s',
-      }} />
-    </button>
+          {/* More Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setMoreOpen(!moreOpen)}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all ${
+                moreOpen || MORE_NAV.some((n) => n.to === location.pathname)
+                  ? "text-crypto-blue bg-crypto-blue/10"
+                  : "text-text-2 hover:bg-bg-hover hover:text-text-1"
+              }`}
+            >
+              More
+              <ChevronDown
+                size={12}
+                className={`transition-transform duration-200 ${moreOpen ? "rotate-180" : ""}`}
+              />
+            </button>
 
-    {moreOpen && (
-      <>
-        {/* Backdrop */}
-        <div
-          style={{ position: 'fixed', inset: 0, zIndex: 49 }}
-          onClick={() => setMoreOpen(false)}
-        />
-        {/* Dropdown */}
-        <div style={{
-          position:   'absolute',
-          top:        'calc(100% + 8px)',
-          left:       0,
-          background: C.bgElevated,
-          border:     `1px solid ${C.borderMd}`,
-          borderRadius: 12,
-          padding:    6,
-          zIndex:     50,
-          minWidth:   200,
-          boxShadow:  C.shadowLg,
-          display:    'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap:        2,
-          animation:  'scaleIn 0.15s ease-out both',
-          transformOrigin: 'top left',
-        }}>
-          {MORE_NAV.map(({ to, label }) => {
-            const isActive = location.pathname === to
-            return (
-              <Link
-                key={to}
-                to={to}
-                onClick={() => setMoreOpen(false)}
-                style={{
-                  display:      'block',
-                  padding:      '8px 12px',
-                  borderRadius: 8,
-                  textDecoration: 'none',
-                  color:        isActive ? C.blue : C.text2,
-                  fontSize:     12,
-                  fontWeight:   isActive ? 700 : 500,
-                  background:   isActive ? 'rgba(61,142,248,0.08)' : 'transparent',
-                  transition:   'all 0.1s',
-                  whiteSpace:   'nowrap',
-                }}
-                onMouseEnter={e => {
-                  if (!isActive) e.currentTarget.style.background = C.bgHover
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = isActive
-                    ? 'rgba(61,142,248,0.08)' : 'transparent'
-                }}
-              >
-                {label}
-              </Link>
-            )
-          })}
-        </div>
-      </>
-    )}
-  </div>
-</nav>
+            {moreOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setMoreOpen(false)}
+                />
+                <div className="absolute top-[calc(100%+8px)] left-0 min-w-55 bg-bg-elevated border border-border-md rounded-xl p-1.5 shadow-premium grid grid-cols-2 gap-1 z-50 animate-scale-in">
+                  {MORE_NAV.map((item) => (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setMoreOpen(false)}
+                      className={`block px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                        location.pathname === item.to
+                          ? "bg-crypto-blue/10 text-crypto-blue"
+                          : "text-text-2 hover:bg-bg-hover hover:text-text-1"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </nav>
 
-        {/* ── Search bar ── */}
-        <div
-          ref={searchRef}
-          style={{ position: "relative", marginLeft: "auto", width: 240 }}
-        >
-          {/* Input wrapper */}
-          <div
-            style={{
-              position: "relative",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
+        {/* Search Bar */}
+        <div ref={searchRef} className="relative ml-auto w-60 group">
+          <div className="relative flex items-center">
             <Search
               size={13}
-              style={{
-                position: "absolute",
-                left: 10,
-                color: C.text3,
-                pointerEvents: "none", // clicks pass through to the input
-              }}
+              className="absolute left-3 text-text-3 group-focus-within:text-crypto-blue transition-colors"
             />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => query.length >= 2 && setShowResults(true)}
-              placeholder="Search coins…"
-              style={{
-                width: "100%",
-                height: 32,
-                padding: "0 32px 0 30px",
-                background: C.bgBase,
-                border: `1px solid ${C.borderMd}`,
-                borderRadius: 8,
-                color: C.text1,
-                fontSize: 13,
-                fontFamily: "var(--ff-body)",
-                outline: "none",
-                transition: "border-color 0.15s",
-              }}
-              onMouseEnter={(e) => (e.target.style.borderColor = C.blue)}
-              onMouseLeave={(e) => {
-                if (document.activeElement !== e.target)
-                  e.target.style.borderColor = C.borderMd;
-              }}
-              onFocusCapture={(e) => (e.target.style.borderColor = C.blue)}
-              onBlurCapture={(e) => (e.target.style.borderColor = C.borderMd)}
+              placeholder="Search coins..."
+              className="w-full h-8 pl-9 pr-8 bg-bg-base border border-border-md rounded-lg text-[13px] text-text-1 outline-none focus:border-crypto-blue transition-all"
             />
-
-            {/* Right icon: spinner while searching, X to clear when there's text */}
-            {searching && (
-              <Loader2
-                size={13}
-                style={{
-                  position: "absolute",
-                  right: 10,
-                  color: C.blue,
-                  animation: "spin 0.8s linear infinite",
-                }}
-              />
-            )}
-            {query && !searching && (
-              <button
-                onClick={() => {
-                  setQuery("");
-                  setResults([]);
-                  setShowResults(false);
-                }}
-                style={{
-                  position: "absolute",
-                  right: 8,
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: C.text3,
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <X size={13} />
-              </button>
-            )}
+            <div className="absolute right-2.5 flex items-center">
+              {searching ? (
+                <Loader2 size={13} className="text-crypto-blue animate-spin" />
+              ) : (
+                query && (
+                  <button
+                    onClick={() => setQuery("")}
+                    className="text-text-3 hover:text-text-1"
+                  >
+                    <X size={13} />
+                  </button>
+                )
+              )}
+            </div>
           </div>
 
-          {/* Results dropdown */}
+          {/* Search Results Dropdown */}
           {showResults && (
-            <div
-              style={{
-                position: "absolute",
-                top: "calc(100% + 6px)",
-                left: 0,
-                right: 0,
-                background: C.bgElevated,
-                border: `1px solid ${C.borderMd}`,
-                borderRadius: 12,
-                boxShadow: C.shadowLg,
-                overflow: "hidden",
-                animation: "scaleIn 0.15s ease-out both",
-                transformOrigin: "top center",
-                zIndex: 200,
-              }}
-            >
+            <div className="absolute top-[calc(100%+6px)] inset-x-0 bg-bg-elevated border border-border-md rounded-xl shadow-premium overflow-hidden animate-scale-in z-200">
               {results.length > 0
                 ? results.map((coin) => (
-                    <SearchResult
+                    <button
                       key={coin.id}
-                      coin={coin}
-                      onSelect={() => handleSelect(coin.id)}
-                    />
+                      onClick={() => {
+                        navigate(`/coin/${coin.id}`);
+                        setShowResults(false);
+                        setQuery("");
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-bg-hover transition-colors text-left"
+                    >
+                      <img
+                        src={coin.thumb}
+                        alt=""
+                        className="w-6 h-6 rounded-full"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-[13px] font-semibold text-text-1">
+                          {coin.name}
+                        </span>
+                        <span className="text-[10px] font-mono text-text-3 uppercase">
+                          {coin.symbol}
+                        </span>
+                      </div>
+                      {coin.market_cap_rank && (
+                        <span className="ml-auto text-[11px] font-mono text-text-4">
+                          #{coin.market_cap_rank}
+                        </span>
+                      )}
+                    </button>
                   ))
                 : !searching && (
-                    <div
-                      style={{
-                        padding: "14px 16px",
-                        color: C.text3,
-                        fontSize: 13,
-                        textAlign: "center",
-                      }}
-                    >
+                    <div className="p-4 text-center text-[13px] text-text-3">
                       No results for "{query}"
                     </div>
                   )}
@@ -398,226 +231,70 @@ const { theme, toggleTheme } = useTheme()
           )}
         </div>
 
-        {/* Currency switcher */}
-        <div ref={currencyRef} style={{ position: "relative", marginLeft: 8 }}>
-          <CurrencyButton
-            onClick={() => setShowCurrency((v) => !v)}
-            label={`${activeCurrency.symbol} ${activeCurrency.label}`}
-          />
+        {/* Currency Switcher */}
+        <div ref={currencyRef} className="relative ml-2">
+          <button
+            onClick={() => setShowCurrency(!showCurrency)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-md text-text-2 font-mono text-xs font-semibold hover:bg-bg-hover hover:text-text-1 transition-all"
+          >
+            {activeCurrency.symbol} {activeCurrency.label}
+            <ChevronDown
+              size={12}
+              className={`transition-transform ${showCurrency ? "rotate-180" : ""}`}
+            />
+          </button>
+
           {showCurrency && (
-            <div
-              style={{
-                position: "absolute",
-                top: "calc(100% + 8px)",
-                right: 0,
-                background: C.bgElevated,
-                border: `1px solid ${C.borderMd}`,
-                borderRadius: 12,
-                boxShadow: C.shadowLg,
-                minWidth: 130,
-                overflow: "hidden",
-                animation: "scaleIn 0.15s ease-out both",
-                transformOrigin: "top right",
-              }}
-            >
+            <div className="absolute top-[calc(100%+8px)] right-0 min-w-35 bg-bg-elevated border border-border-md rounded-xl shadow-premium overflow-hidden animate-scale-in z-200">
               {CURRENCIES.map((c) => (
-                <CurrencyOption
+                <button
                   key={c.code}
-                  currency={c}
-                  isSelected={c.code === currency}
-                  onSelect={() => {
+                  onClick={() => {
                     setCurrency(c.code);
                     setShowCurrency(false);
                   }}
-                />
+                  className={`w-full flex items-center justify-between px-4 py-2.5 text-[13px] font-medium transition-colors ${
+                    currency === c.code
+                      ? "bg-crypto-blue/10 text-crypto-blue"
+                      : "text-text-2 hover:bg-bg-hover"
+                  }`}
+                >
+                  <span className="flex gap-2">
+                    <span className="font-mono w-4">{c.symbol}</span>
+                    {c.label}
+                  </span>
+                  {currency === c.code && (
+                    <span className="text-[10px]">✓</span>
+                  )}
+                </button>
               ))}
             </div>
           )}
         </div>
-        <ThemeToggle theme={theme} onToggle={toggleTheme} />
+
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="w-8 h-8 flex items-center justify-center rounded-lg border border-border-md text-text-2 hover:bg-bg-hover hover:text-text-1 transition-all ml-1"
+        >
+          {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
       </div>
     </header>
   );
 }
 
-// ── Single search result row ──
-function SearchResult({ coin, onSelect }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <div
-      onClick={onSelect}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "9px 14px",
-        background: hovered ? C.bgHover : "transparent",
-        cursor: "pointer",
-        transition: "background 0.1s",
-      }}
-    >
-      <img
-        src={coin.thumb}
-        alt={coin.name}
-        style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0 }}
-      />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: C.text1, fontSize: 13, fontWeight: 600 }}>
-          {coin.name}
-        </div>
-        <div
-          style={{
-            color: C.text3,
-            fontSize: 10,
-            fontFamily: "var(--ff-mono)",
-            textTransform: "uppercase",
-          }}
-        >
-          {coin.symbol}
-        </div>
-      </div>
-      {coin.market_cap_rank && (
-        <span
-          style={{
-            color: C.text4,
-            fontSize: 11,
-            fontFamily: "var(--ff-mono)",
-          }}
-        >
-          #{coin.market_cap_rank}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function CurrencyButton({ onClick, label }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "5px 10px",
-        borderRadius: 8,
-        border: `1px solid ${C.borderMd}`,
-        background: hovered ? C.bgHover : "transparent",
-        color: C.text2,
-        fontSize: 12,
-        fontWeight: 600,
-        fontFamily: "var(--ff-mono)",
-        cursor: "pointer",
-        transition: "all 0.15s",
-      }}
-    >
-      {label}
-      <ChevronDown size={12} />
-    </button>
-  );
-}
-
-function CurrencyOption({ currency, isSelected, onSelect }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={onSelect}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        width: "100%",
-        padding: "9px 14px",
-        border: "none",
-        background: isSelected
-          ? "rgba(61,142,248,0.08)"
-          : hovered
-            ? C.bgHover
-            : "transparent",
-        color: isSelected ? C.blue : C.text2,
-        fontSize: 13,
-        fontWeight: 600,
-        cursor: "pointer",
-        transition: "all 0.15s",
-        textAlign: "left",
-        fontFamily: "var(--ff-body)",
-      }}
-    >
-      <span style={{ fontFamily: "var(--ff-mono)", minWidth: 16 }}>
-        {currency.symbol}
-      </span>
-      {currency.label}
-      {isSelected && (
-        <span style={{ marginLeft: "auto", color: C.blue, fontSize: 11 }}>
-          ✓
-        </span>
-      )}
-    </button>
-  );
-}
-
-function NavLink({ to, isActive, children }) {
-  const [hovered, setHovered] = useState(false);
+function NavLink({ to, active, children }) {
   return (
     <Link
       to={to}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "5px 12px",
-        borderRadius: 8,
-        fontSize: 13,
-        fontWeight: 600,
-        textDecoration: "none",
-        transition: "all 0.15s",
-        color: isActive ? C.blue : hovered ? C.text1 : C.text2,
-        background: isActive
-          ? "rgba(61,142,248,0.10)"
-          : hovered
-            ? C.bgHover
-            : "transparent",
-      }}
+      className={`px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all ${
+        active
+          ? "bg-crypto-blue/10 text-crypto-blue"
+          : "text-text-2 hover:bg-bg-hover hover:text-text-1"
+      }`}
     >
       {children}
     </Link>
   );
-}
-function ThemeToggle({ theme, onToggle }) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <button
-      onClick={onToggle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      style={{
-        display:        'flex',
-        alignItems:     'center',
-        justifyContent: 'center',
-        width:          32,
-        height:         32,
-        borderRadius:   8,
-        border:         `1px solid ${C.borderMd}`,
-        background:     hovered ? C.bgHover : 'transparent',
-        color:          C.text2,
-        cursor:         'pointer',
-        transition:     'all 0.15s',
-        flexShrink:     0,
-      }}
-    >
-      {theme === 'dark'
-        ? <Sun  size={14} />
-        : <Moon size={14} />
-      }
-    </button>
-  )
 }
