@@ -7,8 +7,6 @@ import { usePageTitle }                 from '../hooks/usePageTitle'
 import { useWatchlist }                 from '../store/watchlistStore'
 import { Star }                         from 'lucide-react'
 
-
-
 function fmtPrice(price, currency) {
   if (price == null) return '—'
   const sym = CURRENCIES.find(c => c.code === currency)?.symbol || '$'
@@ -29,29 +27,32 @@ function fmtLarge(n) {
 }
 
 const DEFAULT_FILTERS = {
-  minPrice:     '',
-  maxPrice:     '',
-  minMarketCap: '',
-  maxMarketCap: '',
-  minVolume:    '',
-  minChange24h: '',
-  maxChange24h: '',
+  minPrice: '', maxPrice: '',
+  minMarketCap: '', maxMarketCap: '',
+  minVolume: '',
+  minChange24h: '', maxChange24h: '',
 }
 
-const SORT_OPTIONS = [
-  { key: 'market_cap_rank',              label: 'Rank'        },
-  { key: 'current_price',               label: 'Price'       },
-  { key: 'market_cap',                  label: 'Market Cap'  },
-  { key: 'total_volume',                label: 'Volume'      },
-  { key: 'price_change_percentage_24h', label: '24h %'       },
-  { key: 'price_change_percentage_7d_in_currency', label: '7d %' },
+// Column definitions — key must match coin object field name
+const COLUMNS = [
+  { key: 'market_cap_rank',              label: '#',       width: '40px',  align: 'left',  sortable: true  },
+  { key: '__img',                        label: '',        width: '36px',  align: 'left',  sortable: false },
+  { key: 'name',                         label: 'Name',    width: '1fr',   align: 'left',  sortable: false },
+  { key: 'current_price',               label: 'Price',   width: '120px', align: 'right', sortable: true  },
+  { key: 'market_cap',                  label: 'Mkt Cap', width: '120px', align: 'right', sortable: true  },
+  { key: 'total_volume',                label: 'Volume',  width: '110px', align: 'right', sortable: true  },
+  { key: 'price_change_percentage_24h', label: '24h %',   width: '90px',  align: 'right', sortable: true  },
+  { key: 'price_change_percentage_7d_in_currency', label: '7d %', width: '90px', align: 'right', sortable: true },
+  { key: '__star',                       label: '',        width: '32px',  align: 'right', sortable: false },
 ]
+
+const GRID = COLUMNS.map(c => c.width).join(' ')
 
 export default function ScreenerPage() {
   usePageTitle('Screener')
-  const { currency }          = useCurrency()
-  const navigate              = useNavigate()
-  const { toggle, has }       = useWatchlist()
+  const { currency }    = useCurrency()
+  const navigate        = useNavigate()
+  const { toggle, has } = useWatchlist()
 
   const [coins,     setCoins]     = useState([])
   const [loading,   setLoading]   = useState(true)
@@ -60,7 +61,6 @@ export default function ScreenerPage() {
   const [sortDir,   setSortDir]   = useState('asc')
   const [showPanel, setShowPanel] = useState(true)
 
-  // Fetch top 250 coins
   useEffect(() => {
     const load = async () => {
       setLoading(true)
@@ -80,26 +80,34 @@ export default function ScreenerPage() {
   }, [currency])
 
   const handleSort = (key) => {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir('desc') }
+    if (!COLUMNS.find(c => c.key === key)?.sortable) return
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      // Rank sorts asc by default, everything else desc
+      setSortDir(key === 'market_cap_rank' ? 'asc' : 'desc')
+    }
   }
 
-  // Apply filters + sort
   const filtered = useMemo(() => {
     let result = [...coins]
-
     const f = filters
-    if (f.minPrice)     result = result.filter(c => c.current_price >= +f.minPrice)
-    if (f.maxPrice)     result = result.filter(c => c.current_price <= +f.maxPrice)
-    if (f.minMarketCap) result = result.filter(c => c.market_cap    >= +f.minMarketCap * 1e9)
-    if (f.maxMarketCap) result = result.filter(c => c.market_cap    <= +f.maxMarketCap * 1e9)
-    if (f.minVolume)    result = result.filter(c => c.total_volume   >= +f.minVolume * 1e6)
+
+    if (f.minPrice)     result = result.filter(c => (c.current_price ?? 0) >= +f.minPrice)
+    if (f.maxPrice)     result = result.filter(c => (c.current_price ?? 0) <= +f.maxPrice)
+    if (f.minMarketCap) result = result.filter(c => (c.market_cap    ?? 0) >= +f.minMarketCap * 1e9)
+    if (f.maxMarketCap) result = result.filter(c => (c.market_cap    ?? 0) <= +f.maxMarketCap * 1e9)
+    if (f.minVolume)    result = result.filter(c => (c.total_volume  ?? 0) >= +f.minVolume * 1e6)
     if (f.minChange24h) result = result.filter(c => (c.price_change_percentage_24h ?? 0) >= +f.minChange24h)
     if (f.maxChange24h) result = result.filter(c => (c.price_change_percentage_24h ?? 0) <= +f.maxChange24h)
 
     result.sort((a, b) => {
-      const aVal = a[sortKey] ?? 0
-      const bVal = b[sortKey] ?? 0
+      let aVal = a[sortKey]
+      let bVal = b[sortKey]
+      // Treat null/undefined as worst value
+      if (aVal == null) aVal = sortDir === 'asc' ? Infinity : -Infinity
+      if (bVal == null) bVal = sortDir === 'asc' ? Infinity : -Infinity
       return sortDir === 'asc' ? aVal - bVal : bVal - aVal
     })
 
@@ -130,7 +138,7 @@ export default function ScreenerPage() {
               Screener
             </h1>
             <p style={{ color: 'var(--text3)', fontSize: 13, marginTop: 2 }}>
-              {loading ? 'Loading...' : `${filtered.length} coins match your filters`}
+              {loading ? 'Loading coins...' : `${filtered.length} / ${coins.length} coins match`}
             </p>
           </div>
         </div>
@@ -158,7 +166,7 @@ export default function ScreenerPage() {
               border: '1px solid var(--border-md)',
               background: showPanel ? 'var(--bg-hover)' : 'transparent',
               color: showPanel ? 'var(--blue)' : 'var(--text3)',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
             }}
           >
             <SlidersHorizontal size={12} />
@@ -184,47 +192,52 @@ export default function ScreenerPage() {
         </div>
       )}
 
-      {/* Sort bar */}
+      {/* Table */}
       <div style={{
-        display: 'flex', gap: 6, marginBottom: 10,
-        flexWrap: 'wrap',
+        background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+        borderRadius: 14, overflow: 'hidden',
       }}>
-        {SORT_OPTIONS.map(({ key, label }) => {
-          const active = sortKey === key
-          return (
-            <button
-              key={key}
-              onClick={() => handleSort(key)}
-              style={{
-                padding: '5px 12px', borderRadius: 999,
-                border: `1px solid ${active ? 'var(--blue)' : 'var(--border)'}`,
-                background: active ? 'rgba(61,142,248,0.10)' : 'transparent',
-                color: active ? 'var(--blue)' : 'var(--text3)',
-                fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-              }}
-            >
-              {label} {active ? (sortDir === 'asc' ? '↑' : '↓') : ''}
-            </button>
-          )
-        })}
-      </div>
 
-      {/* Column headers */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '28px 32px 1fr 110px 110px 90px 90px 28px',
-        gap: 12, padding: '0 16px 8px',
-      }}>
-        {['#', '', 'Name', 'Price', 'Mkt Cap', '24h %', '7d %', ''].map((h, i) => (
-          <span key={i} style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600,
-            textAlign: i >= 3 && i <= 6 ? 'right' : 'left' }}>
-            {h}
-          </span>
-        ))}
-      </div>
+        {/* Column headers — clickable to sort */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: GRID,
+          gap: 8, padding: '10px 16px',
+          borderBottom: '2px solid var(--border)',
+          background: 'var(--bg-base)',
+        }}>
+          {COLUMNS.map(col => {
+            const active = sortKey === col.key
+            if (!col.sortable) return (
+              <div key={col.key} />
+            )
+            return (
+              <div
+                key={col.key}
+                onClick={() => handleSort(col.key)}
+                style={{
+                  textAlign: col.align,
+                  color: active ? 'var(--blue)' : 'var(--text3)',
+                  fontSize: 11, fontWeight: 700,
+                  cursor: 'pointer', userSelect: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start',
+                  gap: 3,
+                  transition: 'color 0.15s',
+                }}
+              >
+                {col.label}
+                {active && (
+                  <span style={{ fontSize: 10 }}>
+                    {sortDir === 'asc' ? '↑' : '↓'}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
 
-      {/* Rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {/* Rows */}
         {loading
           ? Array.from({ length: 20 }).map((_, i) => <SkeletonRow key={i} />)
           : filtered.map((coin, i) => (
@@ -239,17 +252,22 @@ export default function ScreenerPage() {
             />
           ))
         }
+
         {!loading && filtered.length === 0 && (
           <div style={{
             padding: 48, textAlign: 'center',
             color: 'var(--text3)', fontSize: 14,
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)', borderRadius: 12,
           }}>
             No coins match your filters. Try relaxing the criteria.
           </div>
         )}
       </div>
+
+      {!loading && filtered.length > 0 && (
+        <div style={{ color: 'var(--text4)', fontSize: 11, marginTop: 8, textAlign: 'center' }}>
+          Showing {filtered.length} coins · Click column headers to sort
+        </div>
+      )}
     </div>
   )
 }
@@ -265,53 +283,72 @@ function ScreenerRow({ coin, rank, currency, isWatched, onWatch, onClick }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: 'grid',
-        gridTemplateColumns: '28px 32px 1fr 110px 110px 90px 90px 28px',
-        gap: 12, padding: '10px 16px', alignItems: 'center',
-        background: hovered ? 'var(--bg-hover)' : 'var(--bg-elevated)',
-        border: `1px solid ${hovered ? 'var(--border-md)' : 'var(--border)'}`,
-        borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+        display: 'grid', gridTemplateColumns: GRID,
+        gap: 8, padding: '10px 16px', alignItems: 'center',
+        background: hovered ? 'var(--bg-hover)' : 'transparent',
+        borderBottom: '1px solid var(--border)',
+        cursor: 'pointer', transition: 'background 0.1s',
       }}
     >
-      <span style={{ color: 'var(--text4)', fontSize: 11, fontFamily: 'var(--ff-mono)' }}>
-        {rank}
+      <span style={{ color: 'var(--text4)', fontSize: 11,
+        fontFamily: 'var(--ff-mono)' }}>
+        {coin.market_cap_rank || rank}
       </span>
+
       <img src={coin.image} alt={coin.name}
         style={{ width: 32, height: 32, borderRadius: '50%' }} />
+
       <div>
-        <div style={{ color: 'var(--text1)', fontWeight: 600, fontSize: 13 }}>{coin.name}</div>
-        <div style={{ color: 'var(--text3)', fontSize: 10, fontFamily: 'var(--ff-mono)',
-          textTransform: 'uppercase', marginTop: 2 }}>{coin.symbol}</div>
+        <div style={{ color: 'var(--text1)', fontWeight: 600, fontSize: 13 }}>
+          {coin.name}
+        </div>
+        <div style={{ color: 'var(--text3)', fontSize: 10,
+          fontFamily: 'var(--ff-mono)', textTransform: 'uppercase', marginTop: 1 }}>
+          {coin.symbol}
+        </div>
       </div>
-      <div style={{ color: 'var(--text1)', fontFamily: 'var(--ff-mono)', fontSize: 13,
-        fontWeight: 600, textAlign: 'right' }}>
+
+      <div style={{ color: 'var(--text1)', fontFamily: 'var(--ff-mono)',
+        fontSize: 13, fontWeight: 600, textAlign: 'right' }}>
         {fmtPrice(coin.current_price, currency)}
       </div>
-      <div style={{ color: 'var(--text2)', fontFamily: 'var(--ff-mono)', fontSize: 12,
-        textAlign: 'right' }}>
+
+      <div style={{ color: 'var(--text2)', fontFamily: 'var(--ff-mono)',
+        fontSize: 12, textAlign: 'right' }}>
         {fmtLarge(coin.market_cap)}
       </div>
+
+      <div style={{ color: 'var(--text2)', fontFamily: 'var(--ff-mono)',
+        fontSize: 12, textAlign: 'right' }}>
+        {fmtLarge(coin.total_volume)}
+      </div>
+
       <div style={{
-        textAlign: 'right', fontFamily: 'var(--ff-mono)', fontSize: 13, fontWeight: 600,
-        color: c24 >= 0 ? 'var(--green)' : 'var(--red)',
+        textAlign: 'right', fontFamily: 'var(--ff-mono)',
+        fontSize: 13, fontWeight: 600,
+        color: c24 == null ? 'var(--text3)' : c24 >= 0 ? 'var(--green)' : 'var(--red)',
       }}>
         {c24 != null ? `${c24 >= 0 ? '+' : ''}${c24.toFixed(2)}%` : '—'}
       </div>
+
       <div style={{
-        textAlign: 'right', fontFamily: 'var(--ff-mono)', fontSize: 13, fontWeight: 600,
-        color: c7d >= 0 ? 'var(--green)' : 'var(--red)',
+        textAlign: 'right', fontFamily: 'var(--ff-mono)',
+        fontSize: 13, fontWeight: 600,
+        color: c7d == null ? 'var(--text3)' : c7d >= 0 ? 'var(--green)' : 'var(--red)',
       }}>
         {c7d != null ? `${c7d >= 0 ? '+' : ''}${c7d.toFixed(2)}%` : '—'}
       </div>
+
       <button
         onClick={onWatch}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           width: 26, height: 26, borderRadius: 6,
           border: 'none', background: 'transparent', cursor: 'pointer',
+          marginLeft: 'auto',
         }}
       >
-        <Star size={12}
+        <Star size={13}
           fill={isWatched ? 'var(--gold)' : 'none'}
           color={isWatched ? 'var(--gold)' : 'var(--text4)'}
           strokeWidth={2}
@@ -347,13 +384,11 @@ function FilterInput({ label, value, onChange, placeholder }) {
 function SkeletonRow() {
   return (
     <div style={{
-      display: 'grid',
-      gridTemplateColumns: '28px 32px 1fr 110px 110px 90px 90px 28px',
-      gap: 12, padding: '10px 16px', alignItems: 'center',
-      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-      borderRadius: 12,
+      display: 'grid', gridTemplateColumns: GRID,
+      gap: 8, padding: '10px 16px', alignItems: 'center',
+      borderBottom: '1px solid var(--border)',
     }}>
-      {[16, 32, 120, 80, 80, 60, 60, 20].map((w, i) => (
+      {[16, 32, 120, 80, 80, 70, 60, 60, 20].map((w, i) => (
         <div key={i} style={{
           width: w, height: i === 1 ? 32 : 13,
           borderRadius: i === 1 ? '50%' : 4,

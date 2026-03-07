@@ -23,35 +23,33 @@ function fmtLarge(n) {
   return `$${n.toLocaleString()}`
 }
 
-// All the metrics we compare
 const METRICS = [
-  { key: 'price',       label: 'Current Price',      fmt: (v, c) => fmtPrice(v, c) },
-  { key: 'marketCap',   label: 'Market Cap',          fmt: (v) => fmtLarge(v) },
-  { key: 'volume',      label: '24h Volume',          fmt: (v) => fmtLarge(v) },
-  { key: 'change24h',   label: '24h Change',          fmt: (v) => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—', color: true },
-  { key: 'change7d',    label: '7d Change',           fmt: (v) => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—', color: true },
-  { key: 'ath',         label: 'All Time High',       fmt: (v, c) => fmtPrice(v, c) },
-  { key: 'athChange',   label: 'ATH Change %',        fmt: (v) => v != null ? `${v.toFixed(2)}%` : '—', color: true },
-  { key: 'rank',        label: 'Market Cap Rank',     fmt: (v) => v ? `#${v}` : '—' },
-  { key: 'supply',      label: 'Circulating Supply',  fmt: (v) => v ? v.toLocaleString() : '—' },
-  { key: 'maxSupply',   label: 'Max Supply',          fmt: (v) => v ? v.toLocaleString() : '∞' },
+  { key: 'price',       label: 'Current Price',     fmt: (v, c) => fmtPrice(v, c),  higher: true  },
+  { key: 'marketCap',   label: 'Market Cap',         fmt: (v)    => fmtLarge(v),     higher: true  },
+  { key: 'volume',      label: '24h Volume',         fmt: (v)    => fmtLarge(v),     higher: true  },
+  { key: 'change24h',   label: '24h Change',         fmt: (v)    => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—', color: true },
+  { key: 'change7d',    label: '7d Change',          fmt: (v)    => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—', color: true },
+  { key: 'ath',         label: 'All Time High',      fmt: (v, c) => fmtPrice(v, c),  higher: true  },
+  { key: 'athChange',   label: 'ATH Change %',       fmt: (v)    => v != null ? `${v.toFixed(2)}%` : '—', color: true },
+  { key: 'rank',        label: 'Market Cap Rank',    fmt: (v)    => v ? `#${v}` : '—', higher: false },
+  { key: 'supply',      label: 'Circulating Supply', fmt: (v)    => v ? v.toLocaleString() : '—', higher: true },
+  { key: 'maxSupply',   label: 'Max Supply',         fmt: (v)    => v ? v.toLocaleString() : '∞' },
 ]
 
-// Extract metrics from CoinGecko coin detail object
 function extractMetrics(coin, currency) {
-  if (!coin) return {}
+  if (!coin?.market_data) return {}
   const md = coin.market_data
   return {
-    price:     md?.current_price?.[currency],
-    marketCap: md?.market_cap?.[currency],
-    volume:    md?.total_volume?.[currency],
-    change24h: md?.price_change_percentage_24h,
-    change7d:  md?.price_change_percentage_7d,
-    ath:       md?.ath?.[currency],
-    athChange: md?.ath_change_percentage?.[currency],
+    price:     md.current_price?.[currency],
+    marketCap: md.market_cap?.[currency],
+    volume:    md.total_volume?.[currency],
+    change24h: md.price_change_percentage_24h,
+    change7d:  md.price_change_percentage_7d,
+    ath:       md.ath?.[currency],
+    athChange: md.ath_change_percentage?.[currency],
     rank:      coin.market_cap_rank,
-    supply:    md?.circulating_supply,
-    maxSupply: md?.max_supply,
+    supply:    md.circulating_supply,
+    maxSupply: md.max_supply,
   }
 }
 
@@ -59,11 +57,41 @@ export default function ComparePage() {
   usePageTitle('Compare')
   const { currency } = useCurrency()
 
-  const [coinA, setCoinA] = useState(null)
-  const [coinB, setCoinB] = useState(null)
+  // selectedA/B = search result (has id, name, symbol, thumb)
+  const [selectedA, setSelectedA] = useState(null)
+  const [selectedB, setSelectedB] = useState(null)
 
-  const metricsA = extractMetrics(coinA, currency)
-  const metricsB = extractMetrics(coinB, currency)
+  // fullA/B = full coin detail from CoinGecko (has market_data)
+  const [fullA, setFullA] = useState(null)
+  const [fullB, setFullB] = useState(null)
+  const [loadingA, setLoadingA] = useState(false)
+  const [loadingB, setLoadingB] = useState(false)
+
+  // Fetch full detail whenever a coin is selected
+  useEffect(() => {
+    if (!selectedA) { setFullA(null); return }
+    setLoadingA(true)
+    fetchCoinDetail(selectedA.id).then(({ data }) => {
+      setFullA(data)
+      setLoadingA(false)
+    })
+  }, [selectedA])
+
+  useEffect(() => {
+    if (!selectedB) { setFullB(null); return }
+    setLoadingB(true)
+    fetchCoinDetail(selectedB.id).then(({ data }) => {
+      setFullB(data)
+      setLoadingB(false)
+    })
+  }, [selectedB])
+
+  const metricsA = extractMetrics(fullA, currency)
+  const metricsB = extractMetrics(fullB, currency)
+
+  const bothSelected  = selectedA && selectedB
+  const bothLoaded    = fullA && fullB
+  const anyLoading    = loadingA || loadingB
 
   return (
     <div style={{ animation: 'fadeUp 0.25s ease-out both' }}>
@@ -78,7 +106,8 @@ export default function ComparePage() {
           <GitCompare size={18} color="var(--blue)" />
         </div>
         <div>
-          <h1 style={{ color: 'var(--text1)', fontSize: 22, fontWeight: 700, fontFamily: 'var(--ff-display)' }}>
+          <h1 style={{ color: 'var(--text1)', fontSize: 22, fontWeight: 700,
+            fontFamily: 'var(--ff-display)' }}>
             Compare Coins
           </h1>
           <p style={{ color: 'var(--text3)', fontSize: 13, marginTop: 2 }}>
@@ -90,127 +119,156 @@ export default function ComparePage() {
       {/* Two coin selectors */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
         <CoinSelector
-          label="Coin A"
-          selected={coinA}
-          onSelect={setCoinA}
+          label="COIN A"
+          selected={selectedA}
+          onSelect={setSelectedA}
           accentColor="var(--blue)"
+          loading={loadingA}
         />
         <CoinSelector
-          label="Coin B"
-          selected={coinB}
-          onSelect={setCoinB}
+          label="COIN B"
+          selected={selectedB}
+          onSelect={setSelectedB}
           accentColor="var(--purple)"
+          loading={loadingB}
         />
       </div>
 
-      {/* Comparison table — only show when both selected */}
-      {coinA && coinB && (
+      {/* Loading state */}
+      {bothSelected && anyLoading && (
         <div style={{
-          background:   'var(--bg-elevated)',
-          border:       '1px solid var(--border)',
-          borderRadius: 14,
-          overflow:     'hidden',
+          padding: 32, textAlign: 'center',
+          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+          borderRadius: 14, color: 'var(--text3)', fontSize: 14,
+        }}>
+          Loading coin data...
+        </div>
+      )}
+
+      {/* Comparison table */}
+      {bothSelected && bothLoaded && !anyLoading && (
+        <div style={{
+          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+          borderRadius: 14, overflow: 'hidden',
         }}>
 
           {/* Table header */}
           <div style={{
-            display:             'grid',
-            gridTemplateColumns: '1fr 1fr 1fr',
-            background:          'var(--bg-hover)',
-            borderBottom:        '1px solid var(--border)',
+            display: 'grid', gridTemplateColumns: '1fr 160px 1fr',
+            background: 'var(--bg-hover)', borderBottom: '1px solid var(--border)',
           }}>
-            <CoinHeader coin={coinA} color="var(--blue)" />
+            <CoinHeader coin={selectedA} coinData={fullA} color="var(--blue)" align="left" />
             <div style={{
-              display:        'flex',
-              alignItems:     'center',
-              justifyContent: 'center',
-              color:          'var(--text3)',
-              fontSize:       12,
-              fontWeight:     700,
-              padding:        '14px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--text3)', fontSize: 13, fontWeight: 800,
+              padding: '14px', letterSpacing: '0.1em',
+              borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
             }}>
               VS
             </div>
-            <CoinHeader coin={coinB} color="var(--purple)" />
+            <CoinHeader coin={selectedB} coinData={fullB} color="var(--purple)" align="right" />
           </div>
 
           {/* Metric rows */}
-          {METRICS.map(({ key, label, fmt, color }) => {
+          {METRICS.map(({ key, label, fmt, color, higher }) => {
             const valA = metricsA[key]
             const valB = metricsB[key]
 
-            // Determine which coin is "winning" for numeric metrics
-            const aWins = typeof valA === 'number' && typeof valB === 'number' && valA > valB
-            const bWins = typeof valA === 'number' && typeof valB === 'number' && valB > valA
+            // Determine winner
+            let aWins = false, bWins = false
+            if (!color && typeof valA === 'number' && typeof valB === 'number' && valA !== valB) {
+              if (higher === false) {
+                // Lower rank number = better
+                aWins = valA < valB
+                bWins = valB < valA
+              } else if (higher) {
+                aWins = valA > valB
+                bWins = valB > valA
+              }
+            }
 
             return (
-              <div
-                key={key}
-                style={{
-                  display:             'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr',
-                  borderBottom:        '1px solid var(--border)',
-                }}
-              >
+              <div key={key} style={{
+                display: 'grid', gridTemplateColumns: '1fr 160px 1fr',
+                borderBottom: '1px solid var(--border)',
+              }}>
                 {/* Coin A value */}
                 <div style={{
-                  padding:    '13px 20px',
-                  textAlign:  'right',
-                  fontFamily: 'var(--ff-mono)',
-                  fontSize:   13,
-                  fontWeight: 600,
-                  color:      color && valA != null
+                  padding: '14px 24px', textAlign: 'right',
+                  fontFamily: 'var(--ff-mono)', fontSize: 14, fontWeight: 700,
+                  color: color && valA != null
                     ? valA >= 0 ? 'var(--green)' : 'var(--red)'
                     : aWins ? 'var(--green)' : 'var(--text1)',
+                  background: aWins ? 'rgba(34,197,94,0.04)' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6,
                 }}>
+                  {aWins && <span style={{ fontSize: 10 }}>👑</span>}
                   {fmt(valA, currency)}
                 </div>
 
                 {/* Label */}
                 <div style={{
-                  padding:        '13px 8px',
-                  textAlign:      'center',
-                  color:          'var(--text3)',
-                  fontSize:       12,
-                  fontWeight:     500,
-                  display:        'flex',
-                  alignItems:     'center',
-                  justifyContent: 'center',
-                  borderLeft:     '1px solid var(--border)',
-                  borderRight:    '1px solid var(--border)',
+                  padding: '14px 8px', textAlign: 'center',
+                  color: 'var(--text3)', fontSize: 12, fontWeight: 500,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
+                  background: 'var(--bg-base)',
                 }}>
                   {label}
                 </div>
 
                 {/* Coin B value */}
                 <div style={{
-                  padding:    '13px 20px',
-                  textAlign:  'left',
-                  fontFamily: 'var(--ff-mono)',
-                  fontSize:   13,
-                  fontWeight: 600,
-                  color:      color && valB != null
+                  padding: '14px 24px', textAlign: 'left',
+                  fontFamily: 'var(--ff-mono)', fontSize: 14, fontWeight: 700,
+                  color: color && valB != null
                     ? valB >= 0 ? 'var(--green)' : 'var(--red)'
                     : bWins ? 'var(--green)' : 'var(--text1)',
+                  background: bWins ? 'rgba(34,197,94,0.04)' : 'transparent',
+                  display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   {fmt(valB, currency)}
+                  {bWins && <span style={{ fontSize: 10 }}>👑</span>}
                 </div>
               </div>
             )
           })}
+
+          {/* Winner summary */}
+          {(() => {
+            let aScore = 0, bScore = 0
+            METRICS.forEach(({ key, color, higher }) => {
+              if (color) return
+              const valA = metricsA[key], valB = metricsB[key]
+              if (typeof valA !== 'number' || typeof valB !== 'number' || valA === valB) return
+              if (higher === false) { valA < valB ? aScore++ : bScore++ }
+              else if (higher)      { valA > valB ? aScore++ : bScore++ }
+            })
+            const winner = aScore > bScore ? selectedA : aScore < bScore ? selectedB : null
+            return (
+              <div style={{
+                padding: '14px 24px', textAlign: 'center',
+                background: 'var(--bg-base)',
+                color: 'var(--text2)', fontSize: 13, fontWeight: 600,
+              }}>
+                {winner
+                  ? <>🏆 <span style={{ color: aScore > bScore ? 'var(--blue)' : 'var(--purple)', fontWeight: 800 }}>
+                      {winner.name}
+                    </span> wins {Math.max(aScore,bScore)}-{Math.min(aScore,bScore)} on fundamental metrics</>
+                  : '🤝 Even match across fundamental metrics'
+                }
+              </div>
+            )
+          })()}
         </div>
       )}
 
-      {/* Prompt if not both selected */}
-      {(!coinA || !coinB) && (
+      {/* Prompt */}
+      {(!selectedA || !selectedB) && (
         <div style={{
-          background:   'var(--bg-elevated)',
-          border:       '1px solid var(--border)',
-          borderRadius: 14,
-          padding:      48,
-          textAlign:    'center',
-          color:        'var(--text3)',
-          fontSize:     14,
+          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+          borderRadius: 14, padding: 48, textAlign: 'center',
+          color: 'var(--text3)', fontSize: 14,
         }}>
           Select two coins above to compare them
         </div>
@@ -220,44 +278,40 @@ export default function ComparePage() {
 }
 
 // ── Coin selector with search ──
-function CoinSelector({ label, selected, onSelect, accentColor }) {
-  const [query,    setQuery]    = useState('')
-  const [results,  setResults]  = useState([])
-  const [loading,  setLoading]  = useState(false)
-  const [open,     setOpen]     = useState(false)
-  const [coinData, setCoinData] = useState(null)
-
-  // Fetch full coin detail when selected
-  useEffect(() => {
-    if (!selected) { setCoinData(null); return }
-    fetchCoinDetail(selected.id).then(({ data }) => setCoinData(data))
-  }, [selected])
+function CoinSelector({ label, selected, onSelect, accentColor, loading }) {
+  const [query,   setQuery]   = useState('')
+  const [results, setResults] = useState([])
+  const [open,    setOpen]    = useState(false)
 
   useEffect(() => {
     if (query.length < 2) { setResults([]); return }
     const timer = setTimeout(async () => {
-      setLoading(true)
       const { data } = await fetchSearch(query)
       setResults((data?.coins || []).slice(0, 6))
-      setLoading(false)
     }, 350)
     return () => clearTimeout(timer)
   }, [query])
 
+  const handleSelect = (coin) => {
+    onSelect(coin)
+    setOpen(false)
+    setQuery('')
+    setResults([])
+  }
+
   return (
     <div style={{
-      background:   'var(--bg-elevated)',
-      border:       `1px solid ${open ? accentColor : 'var(--border)'}`,
-      borderRadius: 14,
-      padding:      16,
-      transition:   'border-color 0.15s',
+      background: 'var(--bg-elevated)',
+      border: `1px solid ${open ? accentColor : 'var(--border)'}`,
+      borderRadius: 14, padding: 16, transition: 'border-color 0.15s',
     }}>
-      <div style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 700,
-        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+      <div style={{
+        color: 'var(--text3)', fontSize: 11, fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10,
+      }}>
         {label}
       </div>
 
-      {/* Selected coin display */}
       {selected && !open ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src={selected.thumb} alt={selected.name}
@@ -271,11 +325,15 @@ function CoinSelector({ label, selected, onSelect, accentColor }) {
               {selected.symbol}
             </div>
           </div>
+          {loading && (
+            <span style={{ color: 'var(--text4)', fontSize: 11 }}>Loading...</span>
+          )}
           <button
             onClick={() => { onSelect(null); setQuery(''); setOpen(true) }}
             style={{
-              background: 'none', border: 'none',
-              color: 'var(--text3)', cursor: 'pointer', fontSize: 12,
+              background: 'var(--bg-hover)', border: '1px solid var(--border)',
+              borderRadius: 6, color: 'var(--text3)', cursor: 'pointer',
+              fontSize: 11, fontWeight: 600, padding: '4px 10px',
             }}
           >
             Change
@@ -290,40 +348,21 @@ function CoinSelector({ label, selected, onSelect, accentColor }) {
             onFocus={() => setOpen(true)}
             placeholder="Search coin..."
             style={{
-              width:        '100%',
-              padding:      '9px 12px',
-              background:   'var(--bg-base)',
-              border:       '1px solid var(--border-md)',
-              borderRadius: 8,
-              color:        'var(--text1)',
-              fontSize:     13,
-              outline:      'none',
-              boxSizing:    'border-box',
+              width: '100%', padding: '9px 12px',
+              background: 'var(--bg-base)', border: '1px solid var(--border-md)',
+              borderRadius: 8, color: 'var(--text1)',
+              fontSize: 13, outline: 'none', boxSizing: 'border-box',
             }}
           />
           {results.length > 0 && (
             <div style={{
-              position:     'absolute',
-              top:          'calc(100% + 4px)',
-              left: 0, right: 0,
-              background:   'var(--bg-elevated)',
-              border:       '1px solid var(--border-md)',
-              borderRadius: 10,
-              overflow:     'hidden',
-              zIndex:       50,
-              boxShadow:    'var(--shadow-lg)',
+              position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+              background: 'var(--bg-elevated)', border: '1px solid var(--border-md)',
+              borderRadius: 10, overflow: 'hidden', zIndex: 50,
+              boxShadow: 'var(--shadow-lg)',
             }}>
               {results.map(coin => (
-                <SearchRow
-                  key={coin.id}
-                  coin={coin}
-                  onSelect={() => {
-                    onSelect(coin)
-                    setOpen(false)
-                    setQuery('')
-                    setResults([])
-                  }}
-                />
+                <SearchRow key={coin.id} coin={coin} onSelect={() => handleSelect(coin)} />
               ))}
             </div>
           )}
@@ -333,23 +372,23 @@ function CoinSelector({ label, selected, onSelect, accentColor }) {
   )
 }
 
-function CoinHeader({ coin, color }) {
+function CoinHeader({ coin, coinData, color, align }) {
+  const price = coinData?.market_data?.current_price?.usd
   return (
     <div style={{
-      display:    'flex',
-      alignItems: 'center',
-      gap:        10,
-      padding:    '14px 20px',
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '14px 24px',
+      flexDirection: align === 'right' ? 'row-reverse' : 'row',
     }}>
       <img src={coin.thumb} alt={coin.name}
-        style={{ width: 32, height: 32, borderRadius: '50%' }} />
-      <div>
-        <div style={{ color: 'var(--text1)', fontWeight: 700, fontSize: 14 }}>
+        style={{ width: 36, height: 36, borderRadius: '50%' }} />
+      <div style={{ textAlign: align }}>
+        <div style={{ color: 'var(--text1)', fontWeight: 700, fontSize: 15 }}>
           {coin.name}
         </div>
         <div style={{ color, fontSize: 11,
           fontFamily: 'var(--ff-mono)', textTransform: 'uppercase' }}>
-          {coin.symbol}
+          {coin.symbol?.toUpperCase()}
         </div>
       </div>
     </div>
@@ -364,8 +403,7 @@ function SearchRow({ coin, onSelect }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '9px 14px',
+        display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px',
         background: hovered ? 'var(--bg-hover)' : 'transparent',
         cursor: 'pointer', transition: 'background 0.1s',
       }}

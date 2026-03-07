@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { FlaskConical, Play } from "lucide-react";
 import {
-  AreaChart,
-  Area,
   LineChart,
   Line,
   XAxis,
@@ -13,8 +11,8 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
+import CandlestickChart from "../components/CandlestickChart";
 
-// ── Fetch historical OHLCV from CoinGecko ──
 async function fetchOHLCV(coinId, days = 365) {
   try {
     const res = await fetch(
@@ -22,7 +20,6 @@ async function fetchOHLCV(coinId, days = 365) {
     );
     if (!res.ok) throw new Error("failed");
     const data = await res.json();
-    // CoinGecko returns [timestamp, open, high, low, close]
     return data.map(([ts, o, h, l, c]) => ({
       ts,
       date: new Date(ts).toLocaleDateString(),
@@ -36,7 +33,6 @@ async function fetchOHLCV(coinId, days = 365) {
   }
 }
 
-// ── Technical indicators ──
 function calcSMA(data, period) {
   return data.map((_, i) => {
     if (i < period - 1) return null;
@@ -59,7 +55,6 @@ function calcRSI(data, period = 14) {
 
   let avgGain = gains / period;
   let avgLoss = losses / period;
-
   rsi[period] = 100 - 100 / (1 + avgGain / (avgLoss || 0.001));
 
   for (let i = period + 1; i < data.length; i++) {
@@ -71,7 +66,6 @@ function calcRSI(data, period = 14) {
   return rsi;
 }
 
-// ── Strategy engines ──
 function runBuyAndHold(data, initialCapital) {
   if (!data.length) return null;
   const entryPrice = data[0].close;
@@ -83,14 +77,12 @@ function runBuyAndHold(data, initialCapital) {
     price: d.close,
   }));
 
-  const finalEquity = equity[equity.length - 1].equity;
-  const totalReturn = ((finalEquity - initialCapital) / initialCapital) * 100;
-
   return {
     equity,
     trades: [{ type: "buy", date: data[0].date, price: entryPrice }],
-    totalReturn,
-    finalEquity,
+    totalReturn:
+      ((equity.at(-1).equity - initialCapital) / initialCapital) * 100,
+    finalEquity: equity.at(-1).equity,
     maxDrawdown: calcMaxDrawdown(equity.map((e) => e.equity)),
     winRate: null,
     numTrades: 1,
@@ -101,63 +93,46 @@ function runMACrossover(data, shortPeriod, longPeriod, initialCapital) {
   const shortSMA = calcSMA(data, shortPeriod);
   const longSMA = calcSMA(data, longPeriod);
 
-  let capital = initialCapital;
-  let shares = 0;
-  let inTrade = false;
-  const trades = [];
-  const equity = [];
+  let capital = initialCapital,
+    shares = 0,
+    inTrade = false;
+  const trades = [],
+    equity = [];
 
   for (let i = 0; i < data.length; i++) {
     const price = data[i].close;
-    const s = shortSMA[i];
-    const l = longSMA[i];
+    const s = shortSMA[i],
+      l = longSMA[i];
 
     if (s !== null && l !== null && i > 0) {
-      const prevS = shortSMA[i - 1];
-      const prevL = longSMA[i - 1];
-
-      // Golden cross — buy signal
-      if (
-        prevS !== null &&
-        prevL !== null &&
-        prevS <= prevL &&
-        s > l &&
-        !inTrade
-      ) {
-        shares = capital / price;
-        capital = 0;
-        inTrade = true;
-        trades.push({ type: "buy", date: data[i].date, price, i });
-      }
-      // Death cross — sell signal
-      else if (
-        prevS !== null &&
-        prevL !== null &&
-        prevS >= prevL &&
-        s < l &&
-        inTrade
-      ) {
-        capital = shares * price;
-        shares = 0;
-        inTrade = false;
-        const lastBuy = trades.filter((t) => t.type === "buy").at(-1);
-        trades.push({
-          type: "sell",
-          date: data[i].date,
-          price,
-          i,
-          pnl: capital - initialCapital,
-          returnPct: lastBuy
-            ? ((price - lastBuy.price) / lastBuy.price) * 100
-            : 0,
-        });
+      const prevS = shortSMA[i - 1],
+        prevL = longSMA[i - 1];
+      if (prevS !== null && prevL !== null) {
+        if (prevS <= prevL && s > l && !inTrade) {
+          shares = capital / price;
+          capital = 0;
+          inTrade = true;
+          trades.push({ type: "buy", date: data[i].date, price, i });
+        } else if (prevS >= prevL && s < l && inTrade) {
+          capital = shares * price;
+          shares = 0;
+          inTrade = false;
+          const lastBuy = trades.filter((t) => t.type === "buy").at(-1);
+          trades.push({
+            type: "sell",
+            date: data[i].date,
+            price,
+            i,
+            returnPct: lastBuy
+              ? ((price - lastBuy.price) / lastBuy.price) * 100
+              : 0,
+          });
+        }
       }
     }
-
-    const currentEquity = capital + shares * price;
     equity.push({
       date: data[i].date,
-      equity: currentEquity,
+      equity: capital + shares * price,
       price,
       shortSMA: s,
       longSMA: l,
@@ -165,54 +140,45 @@ function runMACrossover(data, shortPeriod, longPeriod, initialCapital) {
     });
   }
 
-  // Close open position
-  if (inTrade && data.length > 0) {
-    capital = shares * data[data.length - 1].close;
-  }
-
+  if (inTrade) capital = shares * data.at(-1).close;
   const finalEquity = capital + shares * (data.at(-1)?.close || 0);
-  const totalReturn = ((finalEquity - initialCapital) / initialCapital) * 100;
   const sellTrades = trades.filter((t) => t.type === "sell");
-  const winRate =
-    sellTrades.length > 0
-      ? (sellTrades.filter((t) => t.returnPct > 0).length / sellTrades.length) *
-        100
-      : null;
 
   return {
     equity,
     trades,
-    totalReturn,
+    totalReturn: ((finalEquity - initialCapital) / initialCapital) * 100,
     finalEquity,
     maxDrawdown: calcMaxDrawdown(equity.map((e) => e.equity)),
-    winRate,
+    winRate:
+      sellTrades.length > 0
+        ? (sellTrades.filter((t) => t.returnPct > 0).length /
+            sellTrades.length) *
+          100
+        : null,
     numTrades: sellTrades.length,
   };
 }
 
 function runRSIStrategy(data, oversold, overbought, initialCapital) {
   const rsiValues = calcRSI(data, 14);
-
-  let capital = initialCapital;
-  let shares = 0;
-  let inTrade = false;
-  const trades = [];
-  const equity = [];
+  let capital = initialCapital,
+    shares = 0,
+    inTrade = false;
+  const trades = [],
+    equity = [];
 
   for (let i = 0; i < data.length; i++) {
     const price = data[i].close;
     const rsi = rsiValues[i];
 
     if (rsi !== null) {
-      // RSI crosses above oversold — buy
       if (rsi < oversold && !inTrade) {
         shares = capital / price;
         capital = 0;
         inTrade = true;
         trades.push({ type: "buy", date: data[i].date, price, i });
-      }
-      // RSI crosses above overbought — sell
-      else if (rsi > overbought && inTrade) {
+      } else if (rsi > overbought && inTrade) {
         capital = shares * price;
         shares = 0;
         inTrade = false;
@@ -228,7 +194,6 @@ function runRSIStrategy(data, oversold, overbought, initialCapital) {
         });
       }
     }
-
     equity.push({
       date: data[i].date,
       equity: capital + shares * price,
@@ -238,29 +203,28 @@ function runRSIStrategy(data, oversold, overbought, initialCapital) {
   }
 
   const finalEquity = capital + shares * (data.at(-1)?.close || 0);
-  const totalReturn = ((finalEquity - initialCapital) / initialCapital) * 100;
   const sellTrades = trades.filter((t) => t.type === "sell");
-  const winRate =
-    sellTrades.length > 0
-      ? (sellTrades.filter((t) => t.returnPct > 0).length / sellTrades.length) *
-        100
-      : null;
 
   return {
     equity,
     trades,
-    totalReturn,
+    totalReturn: ((finalEquity - initialCapital) / initialCapital) * 100,
     finalEquity,
     maxDrawdown: calcMaxDrawdown(equity.map((e) => e.equity)),
-    winRate,
+    winRate:
+      sellTrades.length > 0
+        ? (sellTrades.filter((t) => t.returnPct > 0).length /
+            sellTrades.length) *
+          100
+        : null,
     numTrades: sellTrades.length,
   };
 }
 
-function calcMaxDrawdown(equityArr) {
-  let peak = -Infinity;
-  let maxDD = 0;
-  for (const val of equityArr) {
+function calcMaxDrawdown(arr) {
+  let peak = -Infinity,
+    maxDD = 0;
+  for (const val of arr) {
     if (val > peak) peak = val;
     const dd = ((peak - val) / peak) * 100;
     if (dd > maxDD) maxDD = dd;
@@ -268,7 +232,27 @@ function calcMaxDrawdown(equityArr) {
   return maxDD;
 }
 
-// ── Config ──
+function generateSyntheticOHLCV(days) {
+  let price = 45000 + Math.random() * 20000;
+  return Array.from({ length: days + 1 }, (_, i) => {
+    const change = (Math.random() - 0.48) * 0.04;
+    price = price * (1 + change);
+    const open = price;
+    const close = price * (1 + (Math.random() - 0.5) * 0.02);
+    const high = Math.max(open, close) * (1 + Math.random() * 0.01);
+    const low = Math.min(open, close) * (1 - Math.random() * 0.01);
+    const ts = Date.now() - (days - i) * 86400000;
+    return {
+      ts,
+      date: new Date(ts).toLocaleDateString(),
+      open,
+      high,
+      low,
+      close,
+    };
+  });
+}
+
 const COINS = [
   { id: "bitcoin", label: "Bitcoin (BTC)" },
   { id: "ethereum", label: "Ethereum (ETH)" },
@@ -288,6 +272,30 @@ const TIMEFRAMES = [
   { value: 365, label: "1 Year" },
 ];
 
+const selectStyle = {
+  width: "100%",
+  padding: "9px 12px",
+  background: "var(--bg-base)",
+  border: "1px solid var(--border-md)",
+  borderRadius: 8,
+  color: "var(--text1)",
+  fontSize: 13,
+  outline: "none",
+  cursor: "pointer",
+};
+
+const inputStyle = {
+  width: "100%",
+  padding: "9px 12px",
+  background: "var(--bg-base)",
+  border: "1px solid var(--border-md)",
+  borderRadius: 8,
+  color: "var(--text1)",
+  fontSize: 13,
+  outline: "none",
+  boxSizing: "border-box",
+};
+
 export default function BacktesterPage() {
   usePageTitle("Backtester");
 
@@ -302,45 +310,30 @@ export default function BacktesterPage() {
   const [ohlcv, setOhlcv] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [bhResult, setBhResult] = useState(null); // buy & hold for comparison
-  const [error, setError] = useState(null);
-
-  const loadAndRun = async () => {
-    setLoading(true);
-    setError(null);
-    setResult(null);
-
-    const data = await fetchOHLCV(coin.id, days);
-
-    if (!data || data.length < 10) {
-      // Fallback: generate synthetic OHLCV
-      const synthetic = generateSyntheticOHLCV(days);
-      setOhlcv(synthetic);
-      runStrategy(synthetic);
-    } else {
-      setOhlcv(data);
-      runStrategy(data);
-    }
-
-    setLoading(false);
-  };
+  const [bhResult, setBhResult] = useState(null);
 
   const runStrategy = (data) => {
     let res;
-    if (strategy === "buyhold") {
-      res = runBuyAndHold(data, capital);
-    } else if (strategy === "ma") {
+    if (strategy === "buyhold") res = runBuyAndHold(data, capital);
+    else if (strategy === "ma")
       res = runMACrossover(data, shortPeriod, longPeriod, capital);
-    } else if (strategy === "rsi") {
+    else if (strategy === "rsi")
       res = runRSIStrategy(data, oversold, overbought, capital);
-    }
-
-    const bh = runBuyAndHold(data, capital);
+    setBhResult(runBuyAndHold(data, capital));
     setResult(res);
-    setBhResult(bh);
   };
 
-  // Re-run strategy when params change (after initial data load)
+  const loadAndRun = async () => {
+    setLoading(true);
+    setResult(null);
+    const data = await fetchOHLCV(coin.id, days);
+    const final =
+      !data || data.length < 10 ? generateSyntheticOHLCV(days) : data;
+    setOhlcv(final);
+    runStrategy(final);
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (ohlcv) runStrategy(ohlcv);
   }, [strategy, shortPeriod, longPeriod, oversold, overbought, capital]);
@@ -352,43 +345,41 @@ export default function BacktesterPage() {
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          gap: 10,
           marginBottom: 24,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: "rgba(61,142,248,0.12)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <FlaskConical size={18} color="var(--blue)" />
+        </div>
+        <div>
+          <h1
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: "rgba(61,142,248,0.12)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              color: "var(--text1)",
+              fontSize: 22,
+              fontWeight: 700,
+              fontFamily: "var(--ff-display)",
             }}
           >
-            <FlaskConical size={18} color="var(--blue)" />
-          </div>
-          <div>
-            <h1
-              style={{
-                color: "var(--text1)",
-                fontSize: 22,
-                fontWeight: 700,
-                fontFamily: "var(--ff-display)",
-              }}
-            >
-              Strategy Backtester
-            </h1>
-            <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 2 }}>
-              Test trading strategies on historical price data
-            </p>
-          </div>
+            Strategy Backtester
+          </h1>
+          <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 2 }}>
+            Test trading strategies on historical price data
+          </p>
         </div>
       </div>
 
-      {/* Config panel */}
+      {/* Config */}
       <div
         style={{
           background: "var(--bg-elevated)",
@@ -406,7 +397,6 @@ export default function BacktesterPage() {
             marginBottom: 16,
           }}
         >
-          {/* Coin */}
           <div>
             <label
               style={{
@@ -433,8 +423,6 @@ export default function BacktesterPage() {
               ))}
             </select>
           </div>
-
-          {/* Timeframe */}
           <div>
             <label
               style={{
@@ -459,8 +447,6 @@ export default function BacktesterPage() {
               ))}
             </select>
           </div>
-
-          {/* Capital */}
           <div>
             <label
               style={{
@@ -480,8 +466,6 @@ export default function BacktesterPage() {
               style={inputStyle}
             />
           </div>
-
-          {/* Strategy */}
           <div>
             <label
               style={{
@@ -508,7 +492,6 @@ export default function BacktesterPage() {
           </div>
         </div>
 
-        {/* Strategy-specific params */}
         {strategy === "ma" && (
           <div
             style={{
@@ -519,14 +502,14 @@ export default function BacktesterPage() {
             }}
           >
             <ParamInput
-              label={`Short MA Period (${shortPeriod} days)`}
+              label={`Short MA (${shortPeriod} days)`}
               value={shortPeriod}
               min={5}
               max={50}
               onChange={setShortPeriod}
             />
             <ParamInput
-              label={`Long MA Period (${longPeriod} days)`}
+              label={`Long MA (${longPeriod} days)`}
               value={longPeriod}
               min={20}
               max={200}
@@ -545,14 +528,14 @@ export default function BacktesterPage() {
             }}
           >
             <ParamInput
-              label={`Oversold Level (${oversold})`}
+              label={`Oversold (${oversold})`}
               value={oversold}
               min={10}
               max={45}
               onChange={setOversold}
             />
             <ParamInput
-              label={`Overbought Level (${overbought})`}
+              label={`Overbought (${overbought})`}
               value={overbought}
               min={55}
               max={90}
@@ -576,7 +559,6 @@ export default function BacktesterPage() {
             fontSize: 14,
             fontWeight: 700,
             cursor: loading ? "not-allowed" : "pointer",
-            transition: "background 0.15s",
           }}
         >
           <Play size={14} />
@@ -584,16 +566,39 @@ export default function BacktesterPage() {
         </button>
       </div>
 
+      {/* Candlestick Chart — always visible once coin is selected */}
+      <div
+        style={{
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border)",
+          borderRadius: 14,
+          padding: "20px",
+          marginBottom: 20,
+        }}
+      >
+        <div
+          style={{
+            color: "var(--text2)",
+            fontSize: 13,
+            fontWeight: 600,
+            marginBottom: 16,
+          }}
+        >
+          {coin.label} — Price Chart
+        </div>
+        <CandlestickChart coinId={coin.id} currency="usd" height={300} />
+      </div>
+
       {/* Results */}
       {result && bhResult && (
         <>
-          {/* Stats cards */}
+          {/* Stats */}
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, 1fr)",
               gap: 12,
-              marginBottom: 20,
+              marginBottom: 16,
             }}
           >
             <ResultCard
@@ -630,7 +635,7 @@ export default function BacktesterPage() {
             />
           </div>
 
-          {/* vs Buy & Hold comparison */}
+          {/* vs B&H banner */}
           <div
             style={{
               padding: "10px 16px",
@@ -678,15 +683,12 @@ export default function BacktesterPage() {
             >
               Equity Curve — Strategy vs Buy & Hold
             </div>
-
-            {/* Merge datasets */}
             {(() => {
               const merged = result.equity.map((e, i) => ({
                 date: e.date,
                 strategy: e.equity,
                 buyhold: bhResult.equity[i]?.equity,
               }));
-
               return (
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={merged}>
@@ -933,7 +935,6 @@ export default function BacktesterPage() {
         </>
       )}
 
-      {/* Empty state */}
       {!result && !loading && (
         <div
           style={{
@@ -966,7 +967,6 @@ export default function BacktesterPage() {
         </div>
       )}
 
-      {/* Disclaimer */}
       <div
         style={{
           marginTop: 16,
@@ -986,31 +986,6 @@ export default function BacktesterPage() {
   );
 }
 
-// ── Synthetic data fallback ──
-function generateSyntheticOHLCV(days) {
-  let price = 45000 + Math.random() * 20000;
-  const data = [];
-  for (let i = days; i >= 0; i--) {
-    const change = (Math.random() - 0.48) * 0.04;
-    price = price * (1 + change);
-    const open = price;
-    const close = price * (1 + (Math.random() - 0.5) * 0.02);
-    const high = Math.max(open, close) * (1 + Math.random() * 0.01);
-    const low = Math.min(open, close) * (1 - Math.random() * 0.01);
-    const ts = Date.now() - i * 86400000;
-    data.push({
-      ts,
-      date: new Date(ts).toLocaleDateString(),
-      open,
-      high,
-      low,
-      close,
-    });
-  }
-  return data;
-}
-
-// ── Small components ──
 function ResultCard({ label, value, color, sub }) {
   return (
     <div
@@ -1068,27 +1043,3 @@ function ParamInput({ label, value, min, max, onChange }) {
     </div>
   );
 }
-
-const selectStyle = {
-  width: "100%",
-  padding: "9px 12px",
-  background: "var(--bg-base)",
-  border: "1px solid var(--border-md)",
-  borderRadius: 8,
-  color: "var(--text1)",
-  fontSize: 13,
-  outline: "none",
-  cursor: "pointer",
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "9px 12px",
-  background: "var(--bg-base)",
-  border: "1px solid var(--border-md)",
-  borderRadius: 8,
-  color: "var(--text1)",
-  fontSize: 13,
-  outline: "none",
-  boxSizing: "border-box",
-};
