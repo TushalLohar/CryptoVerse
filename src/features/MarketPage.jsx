@@ -6,6 +6,7 @@ import { useLivePrices }      from '../hooks/useLivePrices'
 import { useCurrency, CURRENCIES } from '../context/CurrencyContext'
 import { useWatchlist }       from '../store/watchlistStore'
 
+
 function fmtPrice(price, currency) {
   if (price == null) return '—'
   if (currency === 'btc') return `₿${price.toFixed(price < 0.001 ? 8 : 4)}`

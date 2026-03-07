@@ -1,51 +1,44 @@
 import { create } from 'zustand'
 
-const STORAGE_KEY = 'ct_alerts'
+const KEY = 'ct_alerts'
 
-// Load alerts from localStorage on startup
-const loadAlerts = () => {
+const load = () => {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
+    return JSON.parse(localStorage.getItem(KEY)) || []
   } catch {
     return []
   }
 }
 
-// Each alert: { id, coinId, coinName, coinSymbol, coinImage,
-//               targetPrice, direction, currency, createdAt, triggered }
+// Each alert looks like:
+// { id, coinId, coinName, coinSymbol, coinImage, targetPrice, direction, triggered }
+// direction: 'above' = alert when price goes above target
+//            'below' = alert when price goes below target
 export const useAlerts = create((set, get) => ({
-  alerts: loadAlerts(),
+  alerts: load(),
 
-  addAlert: (coinId, coinName, coinSymbol, coinImage, targetPrice, direction, currency) => {
-    const alert = {
-      id:           Date.now(),
-      coinId,
-      coinName,
-      coinSymbol,
-      coinImage,
-      targetPrice:  Number(targetPrice),
-      direction,    // 'above' | 'below'
-      currency,
-      createdAt:    Date.now(),
-      triggered:    false,
-    }
-    const alerts = [...get().alerts, alert]
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts))
-    set({ alerts })
-    return alert
+  addAlert: (alert) => {
+    const updated = [...get().alerts, {
+      ...alert,
+      id:        Date.now().toString(),
+      triggered: false,
+    }]
+    localStorage.setItem(KEY, JSON.stringify(updated))
+    set({ alerts: updated })
   },
 
   removeAlert: (id) => {
-    const alerts = get().alerts.filter((a) => a.id !== id)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts))
-    set({ alerts })
+    const updated = get().alerts.filter(a => a.id !== id)
+    localStorage.setItem(KEY, JSON.stringify(updated))
+    set({ alerts: updated })
   },
 
+  // Mark alert as triggered so it doesn't fire again
   triggerAlert: (id) => {
-    const alerts = get().alerts.map((a) =>
+    const updated = get().alerts.map(a =>
       a.id === id ? { ...a, triggered: true } : a
     )
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts))
-    set({ alerts })
+    localStorage.setItem(KEY, JSON.stringify(updated))
+    set({ alerts: updated })
   },
 }))

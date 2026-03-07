@@ -1,11 +1,11 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import Header from './Header'
-import {
-  TrendingUp, Flame, ArrowUpDown, Star, Wallet
-} from 'lucide-react'
+import Header    from './Header'
+import TickerBar from './TickerBar'
+import { useAlertChecker } from '../hooks/useAlertChecker'
+import { useLivePrices }   from '../hooks/useLivePrices'
+import { useMarketData }   from '../hooks/useMarketData'
+import { TrendingUp, Flame, ArrowUpDown, Star, Wallet } from 'lucide-react'
 
-
-// Only 5 most important pages — mobile screen can't fit more
 const BOTTOM_NAV = [
   { to: '/',          icon: TrendingUp,  label: 'Markets'  },
   { to: '/trending',  icon: Flame,       label: 'Trending' },
@@ -14,6 +14,15 @@ const BOTTOM_NAV = [
   { to: '/portfolio', icon: Wallet,      label: 'Portfolio'},
 ]
 
+// Fetches top 25 coins just for alert checking
+// Runs at app level so alerts work on every page
+function AlertWatcher() {
+  const { coins } = useMarketData({ page: 1, perPage: 25, currency: 'usd' })
+  const livePrices = useLivePrices(coins)
+  useAlertChecker(livePrices)
+  return null  // renders nothing — just runs in background
+}
+
 export default function AppLayout() {
   const location = useLocation()
 
@@ -21,17 +30,17 @@ export default function AppLayout() {
     <div style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>
 
       <Header />
+      <TickerBar />
+      <AlertWatcher />
 
       <main style={{
         maxWidth: 1400,
         margin:   '0 auto',
-        padding:  '72px 20px 80px', // 80px bottom = clears the bottom nav
+        padding:  '100px 20px 80px',
       }}>
         <Outlet />
       </main>
 
-      {/* ── Mobile bottom nav ── */}
-      {/* Hidden on desktop via @media in a style tag */}
       <BottomNav location={location} />
 
     </div>
@@ -41,19 +50,11 @@ export default function AppLayout() {
 function BottomNav({ location }) {
   return (
     <>
-      {/* Inline media query — only way to do responsive without Tailwind */}
       <style>{`
-        .bottom-nav {
-          display: none;
-        }
+        .bottom-nav { display: none; }
         @media (max-width: 768px) {
-          .bottom-nav {
-            display: flex;
-          }
-          /* Hide desktop nav links on mobile */
-          .desktop-nav {
-            display: none !important;
-          }
+          .bottom-nav { display: flex; }
+          .desktop-nav { display: none !important; }
         }
       `}</style>
 
@@ -61,9 +62,7 @@ function BottomNav({ location }) {
         className="bottom-nav"
         style={{
           position:       'fixed',
-          bottom:         0,
-          left:           0,
-          right:          0,
+          bottom:         0, left: 0, right: 0,
           height:         58,
           background:     'var(--bg-elevated)',
           borderTop:      '1px solid var(--border)',
@@ -73,7 +72,7 @@ function BottomNav({ location }) {
           backdropFilter: 'blur(12px)',
         }}
       >
-        {BOTTOM_NAV.map(({ to, icon:Icon, label }) => {
+        {BOTTOM_NAV.map(({ to, icon: Icon, label }) => {
           const isActive = location.pathname === to
           return (
             <Link
@@ -94,10 +93,7 @@ function BottomNav({ location }) {
                 transition:     'color 0.15s',
               }}
             >
-              <Icon
-                size={20}
-                strokeWidth={isActive ? 2.5 : 1.8}
-              />
+              <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
               {label}
             </Link>
           )

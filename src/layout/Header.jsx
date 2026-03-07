@@ -6,19 +6,37 @@ import { useCurrency, CURRENCIES } from "../context/CurrencyContext";
 import { fetchSearch } from "../utils/marketAPI";
 import { Sun, Moon } from 'lucide-react'
 import { useTheme }  from '../context/ThemeContext'
+import { Bell } from "lucide-react";
 
-const NAV_LINKS = [
-  { to: "/", label: "Markets" },
-  { to: "/trending", label: "Trending" },
-  { to: "/gainers", label: "Movers" },
-  { to: "/watchlist", label: "Watchlist" },
-  { to: "/portfolio", label: "Portfolio" },
-];
+const PRIMARY_NAV = [
+  { to: '/',          label: 'Markets'   },
+  { to: '/trending',  label: 'Trending'  },
+  { to: '/gainers',   label: 'Movers'    },
+  { to: '/watchlist', label: 'Watchlist' },
+  { to: '/portfolio', label: 'Portfolio' },
+  { to: '/ai',        label: 'AI Chat'   },
+]
+
+const MORE_NAV = [
+  { to: '/alerts',       label: '🔔 Alerts'     },
+  { to: '/compare',      label: '⚖️ Compare'    },
+  { to: '/screener',     label: '🔍 Screener'   },
+  { to: '/heatmap',      label: '🟩 Heatmap'    },
+  { to: '/whale-alerts', label: '🐋 Whales'     },
+  { to: '/gas',          label: '⛽ Gas Tracker' },
+  { to: '/onchain',      label: '🔗 On-Chain'   },
+  { to: '/defi',         label: '🏦 DeFi'       },
+  { to: '/order-book',   label: '📊 Order Book' },
+  { to: '/arbitrage',    label: '💱 Arbitrage'  },
+  { to: '/game',         label: '🎮 Game'        },
+  { to: '/backtest',     label: '📈 Backtest'   },
+]
 
 export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { currency, setCurrency } = useCurrency();
+  const [moreOpen, setMoreOpen] = useState(false)
 
   // ── Currency dropdown ──
   const [showCurrency, setShowCurrency] = useState(false);
@@ -158,12 +176,101 @@ const { theme, toggleTheme } = useTheme()
 
         {/* Nav */}
         <nav className="desktop-nav" style={{ display: "flex", alignItems: "center", gap: 2 }}>
-          {NAV_LINKS.map(({ to, label }) => (
-            <NavLink key={to} to={to} isActive={location.pathname === to}>
-              {label}
-            </NavLink>
-          ))}
-        </nav>
+  {PRIMARY_NAV.map(({ to, label }) => (
+    <NavLink key={to} to={to} isActive={location.pathname === to}>
+      {label}
+    </NavLink>
+  ))}
+
+  {/* More dropdown */}
+  <div style={{ position: 'relative' }}>
+    <button
+      onClick={() => setMoreOpen(o => !o)}
+      style={{
+        display:    'flex',
+        alignItems: 'center',
+        gap:        4,
+        padding:    '5px 12px',
+        borderRadius: 8,
+        border:     'none',
+        fontSize:   13,
+        fontWeight: 600,
+        color:      MORE_NAV.some(n => n.to === location.pathname) || moreOpen
+          ? C.blue : C.text2,
+        background: MORE_NAV.some(n => n.to === location.pathname) || moreOpen
+          ? 'rgba(61,142,248,0.10)' : 'transparent',
+        cursor:     'pointer',
+        transition: 'all 0.15s',
+      }}
+    >
+      More
+      <ChevronDown size={12} style={{
+        transform:  moreOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+        transition: 'transform 0.2s',
+      }} />
+    </button>
+
+    {moreOpen && (
+      <>
+        {/* Backdrop */}
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 49 }}
+          onClick={() => setMoreOpen(false)}
+        />
+        {/* Dropdown */}
+        <div style={{
+          position:   'absolute',
+          top:        'calc(100% + 8px)',
+          left:       0,
+          background: C.bgElevated,
+          border:     `1px solid ${C.borderMd}`,
+          borderRadius: 12,
+          padding:    6,
+          zIndex:     50,
+          minWidth:   200,
+          boxShadow:  C.shadowLg,
+          display:    'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap:        2,
+          animation:  'scaleIn 0.15s ease-out both',
+          transformOrigin: 'top left',
+        }}>
+          {MORE_NAV.map(({ to, label }) => {
+            const isActive = location.pathname === to
+            return (
+              <Link
+                key={to}
+                to={to}
+                onClick={() => setMoreOpen(false)}
+                style={{
+                  display:      'block',
+                  padding:      '8px 12px',
+                  borderRadius: 8,
+                  textDecoration: 'none',
+                  color:        isActive ? C.blue : C.text2,
+                  fontSize:     12,
+                  fontWeight:   isActive ? 700 : 500,
+                  background:   isActive ? 'rgba(61,142,248,0.08)' : 'transparent',
+                  transition:   'all 0.1s',
+                  whiteSpace:   'nowrap',
+                }}
+                onMouseEnter={e => {
+                  if (!isActive) e.currentTarget.style.background = C.bgHover
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = isActive
+                    ? 'rgba(61,142,248,0.08)' : 'transparent'
+                }}
+              >
+                {label}
+              </Link>
+            )
+          })}
+        </div>
+      </>
+    )}
+  </div>
+</nav>
 
         {/* ── Search bar ── */}
         <div
