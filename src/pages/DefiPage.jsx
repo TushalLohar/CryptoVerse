@@ -4,15 +4,13 @@ import { usePageTitle }        from '../hooks/usePageTitle'
 import { Landmark, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
-// CoinGecko free API — DeFi protocols
+// --- Helper Functions (Exactly as provided) ---
 async function fetchDefiProtocols() {
   try {
     const res = await fetch('/api/coingecko/defi')
     if (!res.ok) throw new Error('failed')
     return await res.json()
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
 async function fetchGlobalDefi() {
@@ -21,9 +19,7 @@ async function fetchGlobalDefi() {
     if (!res.ok) throw new Error('failed')
     const data = await res.json()
     return data?.data || null
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
 function fmtTvl(n) {
@@ -33,7 +29,6 @@ function fmtTvl(n) {
   return `$${n.toLocaleString()}`
 }
 
-// Simulate DeFi data if API fails
 function simulateDefiData() {
   const protocols = [
     { id: 'lido',         name: 'Lido',        category: 'Liquid Staking', chain: 'Ethereum', tvl: 38_000_000_000, change24h: 1.2,  change7d: 3.4  },
@@ -86,30 +81,17 @@ export default function DefiPage() {
 
   const load = async () => {
     setLoading(true)
-    const [defiData, global] = await Promise.all([
-      fetchDefiProtocols(),
-      fetchGlobalDefi(),
-    ])
-
-    // Use simulated data — CoinGecko free tier doesn't have DeFi protocols endpoint
+    const [defiData, global] = await Promise.all([fetchDefiProtocols(), fetchGlobalDefi()])
     const simData = simulateDefiData()
     setProtocols(simData)
-
-    // Global DeFi stats
-    if (global) {
-      setGlobalData(global)
-    } else {
+    if (global) setGlobalData(global)
+    else {
       setGlobalData({
-        defi_market_cap:         '86000000000',
-        eth_market_cap:          '380000000000',
-        defi_to_eth_ratio:       '22.6',
-        trading_volume_24h:      '5200000000',
-        defi_dominance:          '4.2',
-        top_coin_name:           'Lido Staked Ether',
-        top_coin_defi_dominance: '18.3',
+        defi_market_cap: '86000000000',
+        trading_volume_24h: '5200000000',
+        defi_dominance: '4.2',
       })
     }
-
     setLoading(false)
   }
 
@@ -132,112 +114,69 @@ export default function DefiPage() {
   const totalTvl = protocols.reduce((s, p) => s + p.tvl, 0)
 
   return (
-    <div style={{ animation: 'fadeUp 0.25s ease-out both' }}>
-
+    <div className="animate-[fadeUp_0.25s_ease-out_both]">
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', marginBottom: 24,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'rgba(34,197,94,0.12)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Landmark size={18} color="var(--green)" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-[10px]">
+          <div className="w-9 h-9 rounded-[10px] bg-[rgba(34,197,94,0.12)] flex items-center justify-center">
+            <Landmark size={18} className="text-[var(--green)]" />
           </div>
           <div>
-            <h1 style={{ color: 'var(--text1)', fontSize: 22, fontWeight: 700,
-              fontFamily: 'var(--ff-display)' }}>
-              DeFi
-            </h1>
-            <p style={{ color: 'var(--text3)', fontSize: 13, marginTop: 2 }}>
-              Decentralized finance protocols ranked by TVL
-            </p>
+            <h1 className="text-[var(--text1)] text-[22px] font-bold font-[var(--ff-display)]">DeFi</h1>
+            <p className="text-[var(--text3)] text-[13px] mt-[2px]">Decentralized finance protocols ranked by TVL</p>
           </div>
         </div>
-        <button
-          onClick={load}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '7px 14px', borderRadius: 8,
-            border: '1px solid var(--border-md)',
-            background: 'transparent', color: 'var(--text2)',
-            fontSize: 12, fontWeight: 600, cursor: 'pointer',
-          }}
-        >
-          <RefreshCw size={12} />
-          Refresh
+        <button onClick={load} className="flex items-center gap-1.5 p-[7px_14px] rounded-lg border border-[var(--border-md)] bg-transparent text-[var(--text2)] text-xs font-semibold cursor-pointer">
+          <RefreshCw size={12} /> Refresh
         </button>
       </div>
 
       {/* Global stats */}
       {globalData && (
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 12, marginBottom: 20,
-        }}>
+        <div className="grid grid-cols-4 gap-3 mb-5">
           {[
             { label: 'Total TVL',       value: fmtTvl(totalTvl),                          color: 'var(--green)'  },
             { label: 'DeFi Market Cap', value: fmtTvl(+globalData.defi_market_cap),        color: 'var(--blue)'   },
             { label: '24h Volume',      value: fmtTvl(+globalData.trading_volume_24h),     color: 'var(--purple)' },
             { label: 'DeFi Dominance',  value: `${(+globalData.defi_dominance).toFixed(2)}%`, color: 'var(--gold)' },
           ].map(({ label, value, color }) => (
-            <div key={label} style={{
-              background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-              borderRadius: 12, padding: '14px 18px',
-            }}>
-              <div style={{ color: 'var(--text3)', fontSize: 11, marginBottom: 6 }}>{label}</div>
-              <div style={{ color, fontSize: 20, fontWeight: 800,
-                fontFamily: 'var(--ff-mono)' }}>
-                {value}
-              </div>
+            <div key={label} className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl p-[14px_18px]">
+              <div className="text-[var(--text3)] text-[11px] mb-1.5">{label}</div>
+              <div style={{ color }} className="text-xl font-extrabold font-[var(--ff-mono)]">{value}</div>
             </div>
           ))}
         </div>
       )}
 
       {/* Category + chain filters */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div className="flex flex-col gap-2 mb-[14px]">
+        <div className="flex gap-1.5 flex-wrap">
           {CATEGORIES.map(c => (
-            <FilterChip key={c} label={c} active={category === c}
-              onClick={() => setCategory(c)} />
+            <FilterChip key={c} label={c} active={category === c} onClick={() => setCategory(c)} />
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="flex gap-1.5 flex-wrap">
           {CHAINS.map(c => (
-            <FilterChip key={c} label={c} active={chain === c}
-              onClick={() => setChain(c)} color="var(--purple)" small />
+            <FilterChip key={c} label={c} active={chain === c} onClick={() => setChain(c)} color="var(--purple)" small />
           ))}
         </div>
       </div>
 
       {/* Column headers */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '32px 36px 1fr 100px 110px 80px 80px',
-        gap: 12, padding: '0 16px 8px',
-      }}>
+      <div className="grid grid-cols-[32px_36px_1fr_100px_110px_80px_80px] gap-3 p-[0_16px_8px]">
         {[
-          { label: '#',       align: 'left'  },
-          { label: '',        align: 'left'  },
-          { label: 'Protocol',align: 'left'  },
-          { label: 'Category',align: 'left'  },
-          { label: 'TVL',     align: 'right', key: 'tvl'       },
-          { label: '24h %',   align: 'right', key: 'change24h' },
-          { label: '7d %',    align: 'right', key: 'change7d'  },
+          { label: '#',       align: 'text-left'  },
+          { label: '',        align: 'text-left'  },
+          { label: 'Protocol',align: 'text-left'  },
+          { label: 'Category',align: 'text-left'  },
+          { label: 'TVL',     align: 'text-right', key: 'tvl'       },
+          { label: '24h %',   align: 'text-right', key: 'change24h' },
+          { label: '7d %',    align: 'text-right', key: 'change7d'  },
         ].map(({ label, align, key }, i) => (
           <span
             key={i}
             onClick={key ? () => handleSort(key) : undefined}
-            style={{
-              color:    key && sortKey === key ? 'var(--blue)' : 'var(--text3)',
-              fontSize: 11, fontWeight: 600,
-              textAlign: align,
-              cursor:   key ? 'pointer' : 'default',
-            }}
+            className={`text-[11px] font-semibold ${align} ${key ? 'cursor-pointer' : 'cursor-default'} ${key && sortKey === key ? 'text-[var(--blue)]' : 'text-[var(--text3)]'}`}
           >
             {label}{key && sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
           </span>
@@ -245,7 +184,7 @@ export default function DefiPage() {
       </div>
 
       {/* Protocol rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div className="flex flex-col gap-1">
         {loading
           ? Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)
           : filtered.map((protocol, i) => (
@@ -255,51 +194,28 @@ export default function DefiPage() {
               rank={i + 1}
               totalTvl={totalTvl}
               isSelected={selected?.id === protocol.id}
-              onSelect={() => setSelected(
-                selected?.id === protocol.id ? null : protocol
-              )}
+              onSelect={() => setSelected(selected?.id === protocol.id ? null : protocol)}
             />
           ))
         }
       </div>
 
-      {/* Detail panel — TVL chart for selected protocol */}
+      {/* Detail panel */}
       {selected && (
-        <div style={{
-          marginTop:    16,
-          background:   'var(--bg-elevated)',
-          border:       '1px solid var(--border-md)',
-          borderRadius: 14,
-          padding:      '20px',
-          animation:    'fadeUp 0.2s ease-out both',
-        }}>
-          <div style={{
-            display: 'flex', justifyContent: 'space-between',
-            alignItems: 'center', marginBottom: 16,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 22 }}>🏦</span>
+        <div className="mt-4 bg-[var(--bg-elevated)] border border-[var(--border-md)] rounded-[14px] p-5 animate-[fadeUp_0.2s_ease-out_both]">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2.5">
+              <span className="text-[22px]">🏦</span>
               <div>
-                <div style={{ color: 'var(--text1)', fontWeight: 700, fontSize: 16 }}>
-                  {selected.name}
-                </div>
-                <div style={{ color: 'var(--text3)', fontSize: 12, marginTop: 2 }}>
-                  {selected.category} · {selected.chain}
-                </div>
+                <div className="text-[var(--text1)] font-bold text-base">{selected.name}</div>
+                <div className="text-[var(--text3)] text-xs mt-[2px]">{selected.category} · {selected.chain}</div>
               </div>
             </div>
-            <button
-              onClick={() => setSelected(null)}
-              style={{
-                background: 'none', border: 'none',
-                color: 'var(--text3)', cursor: 'pointer', fontSize: 18,
-              }}
-            >×</button>
+            <button onClick={() => setSelected(null)} className="bg-none border-none text-[var(--text3)] cursor-pointer text-[18px]">×</button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: 20 }}>
-            {/* Stats */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="grid grid-cols-[1fr_3fr] gap-5">
+            <div className="flex flex-col gap-2.5">
               {[
                 { label: 'TVL',      value: fmtTvl(selected.tvl),                         color: 'var(--text1)'  },
                 { label: '24h',      value: `${selected.change24h >= 0 ? '+' : ''}${selected.change24h.toFixed(2)}%`,
@@ -309,25 +225,15 @@ export default function DefiPage() {
                 { label: 'Mkt Share',value: `${((selected.tvl / totalTvl) * 100).toFixed(1)}%`,
                                      color: 'var(--blue)' },
               ].map(({ label, value, color }) => (
-                <div key={label} style={{
-                  background: 'var(--bg-base)', borderRadius: 10,
-                  padding: '10px 14px',
-                  border: '1px solid var(--border)',
-                }}>
-                  <div style={{ color: 'var(--text3)', fontSize: 11 }}>{label}</div>
-                  <div style={{ color, fontWeight: 700, fontSize: 16,
-                    fontFamily: 'var(--ff-mono)', marginTop: 3 }}>
-                    {value}
-                  </div>
+                <div key={label} className="bg-[var(--bg-base)] rounded-[10px] p-[10px_14px] border border-[var(--border)]">
+                  <div className="text-[var(--text3)] text-[11px]">{label}</div>
+                  <div style={{ color }} className="font-bold text-base font-[var(--ff-mono)] mt-[3px]">{value}</div>
                 </div>
               ))}
             </div>
 
-            {/* TVL history chart */}
             <div>
-              <div style={{ color: 'var(--text3)', fontSize: 12, marginBottom: 10 }}>
-                TVL History (30 days)
-              </div>
+              <div className="text-[var(--text3)] text-xs mb-2.5">TVL History (30 days)</div>
               <ResponsiveContainer width="100%" height={160}>
                 <AreaChart data={selected.tvlHistory}>
                   <defs>
@@ -336,33 +242,25 @@ export default function DefiPage() {
                       <stop offset="95%" stopColor="var(--green)" stopOpacity={0}   />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="day" tick={{ fill: 'var(--text4)', fontSize: 9 }}
-                    tickLine={false} axisLine={false} interval={9} />
-                  <YAxis tick={{ fill: 'var(--text4)', fontSize: 9 }}
-                    tickLine={false} axisLine={false} width={50}
-                    tickFormatter={v => fmtTvl(v)} />
+                  <XAxis dataKey="day" tick={{ fill: 'var(--text4)', fontSize: 9 }} tickLine={false} axisLine={false} interval={9} />
+                  <YAxis tick={{ fill: 'var(--text4)', fontSize: 9 }} tickLine={false} axisLine={false} width={50} tickFormatter={v => fmtTvl(v)} />
                   <Tooltip
-                    contentStyle={{ background: 'var(--bg-elevated)',
-                      border: '1px solid var(--border-md)', borderRadius: 8, fontSize: 11 }}
+                    contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-md)', borderRadius: 8, fontSize: 11 }}
                     formatter={v => [fmtTvl(v), 'TVL']}
                     labelStyle={{ color: 'var(--text3)' }}
                     itemStyle={{ color: 'var(--green)' }}
                   />
-                  <Area type="monotone" dataKey="tvl"
-                    stroke="var(--green)" strokeWidth={2}
-                    fill="url(#tvlGrad)" dot={false} />
+                  <Area type="monotone" dataKey="tvl" stroke="var(--green)" strokeWidth={2} fill="url(#tvlGrad)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
         </div>
       )}
-
     </div>
   )
 }
 
-// ── Protocol row ──
 function ProtocolRow({ protocol, rank, totalTvl, isSelected, onSelect }) {
   const [hovered, setHovered] = useState(false)
   const c24 = protocol.change24h
@@ -374,82 +272,29 @@ function ProtocolRow({ protocol, rank, totalTvl, isSelected, onSelect }) {
       onClick={onSelect}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '32px 36px 1fr 100px 110px 80px 80px',
-        gap: 12, padding: '11px 16px', alignItems: 'center',
-        background:   isSelected ? 'rgba(34,197,94,0.05)' : hovered ? 'var(--bg-hover)' : 'var(--bg-elevated)',
-        border:       `1px solid ${isSelected ? 'rgba(34,197,94,0.3)' : hovered ? 'var(--border-md)' : 'var(--border)'}`,
-        borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-      }}
+      className={`grid grid-cols-[32px_36px_1fr_100px_110px_80px_80px] gap-3 p-[11px_16px] items-center rounded-xl cursor-pointer transition-all duration-150 border
+        ${isSelected ? 'bg-[rgba(34,197,94,0.05)] border-[rgba(34,197,94,0.3)]' : 
+          hovered ? 'bg-[var(--bg-hover)] border-[var(--border-md)]' : 'bg-[var(--bg-elevated)] border-[var(--border)]'}`}
     >
-      <span style={{ color: 'var(--text4)', fontSize: 11,
-        fontFamily: 'var(--ff-mono)' }}>{rank}</span>
-
-      {/* Logo placeholder */}
-      <div style={{
-        width: 32, height: 32, borderRadius: '50%',
-        background: `hsl(${rank * 37 % 360}, 60%, 40%)`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 12, fontWeight: 800, color: '#fff', flexShrink: 0,
-      }}>
+      <span className="text-[var(--text4)] text-[11px] font-[var(--ff-mono)]">{rank}</span>
+      <div 
+        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold text-white shrink-0"
+        style={{ background: `hsl(${rank * 37 % 360}, 60%, 40%)` }}
+      >
         {protocol.name[0]}
       </div>
-
-      {/* Name + TVL bar */}
       <div>
-        <div style={{ color: 'var(--text1)', fontWeight: 600, fontSize: 13 }}>
-          {protocol.name}
-        </div>
-        {/* TVL share bar */}
-        <div style={{
-          marginTop: 4, height: 3, borderRadius: 2,
-          background: 'var(--border)', width: 120, overflow: 'hidden',
-        }}>
-          <div style={{
-            height: '100%', borderRadius: 2,
-            background: 'var(--green)',
-            width: `${Math.min(share * 3, 100)}%`,
-            transition: 'width 0.3s',
-          }} />
+        <div className="text-[var(--text1)] font-semibold text-[13px]">{protocol.name}</div>
+        <div className="mt-1 h-[3px] rounded-[2px] bg-[var(--border)] w-[120px] overflow-hidden">
+          <div className="h-full rounded-[2px] bg-[var(--green)] transition-all duration-300" style={{ width: `${Math.min(share * 3, 100)}%` }} />
         </div>
       </div>
-
-      {/* Category badge */}
-      <div style={{
-        padding: '3px 8px', borderRadius: 999,
-        background: 'var(--bg-hover)',
-        color: 'var(--text3)', fontSize: 10, fontWeight: 600,
-        whiteSpace: 'nowrap', width: 'fit-content',
-      }}>
+      <div className="p-[3px_8px] rounded-full bg-[var(--bg-hover)] text-[var(--text3)] text-[10px] font-semibold whitespace-nowrap w-fit">
         {protocol.category}
       </div>
-
-      {/* TVL */}
-      <div style={{
-        color: 'var(--text1)', fontFamily: 'var(--ff-mono)',
-        fontWeight: 700, fontSize: 14, textAlign: 'right',
-      }}>
-        {fmtTvl(protocol.tvl)}
-      </div>
-
-      {/* 24h */}
-      <div style={{
-        color:      c24 >= 0 ? 'var(--green)' : 'var(--red)',
-        fontFamily: 'var(--ff-mono)', fontWeight: 600,
-        fontSize: 13, textAlign: 'right',
-      }}>
-        {c24 >= 0 ? '+' : ''}{c24.toFixed(2)}%
-      </div>
-
-      {/* 7d */}
-      <div style={{
-        color:      c7d >= 0 ? 'var(--green)' : 'var(--red)',
-        fontFamily: 'var(--ff-mono)', fontWeight: 600,
-        fontSize: 13, textAlign: 'right',
-      }}>
-        {c7d >= 0 ? '+' : ''}{c7d.toFixed(2)}%
-      </div>
+      <div className="text-[var(--text1)] font-[var(--ff-mono)] font-bold text-sm text-right">{fmtTvl(protocol.tvl)}</div>
+      <div className={`font-[var(--ff-mono)] font-semibold text-[13px] text-right ${c24 >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>{c24 >= 0 ? '+' : ''}{c24.toFixed(2)}%</div>
+      <div className={`font-[var(--ff-mono)] font-semibold text-[13px] text-right ${c7d >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>{c7d >= 0 ? '+' : ''}{c7d.toFixed(2)}%</div>
     </div>
   )
 }
@@ -461,15 +306,12 @@ function FilterChip({ label, active, onClick, color = 'var(--blue)', small }) {
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      className={`rounded-full border transition-all duration-150 cursor-pointer font-semibold whitespace-nowrap
+        ${small ? 'p-[3px_10px] text-[11px]' : 'p-[5px_12px] text-xs'}`}
       style={{
-        padding: small ? '3px 10px' : '5px 12px',
-        borderRadius: 999,
-        border: `1px solid ${active ? color : 'var(--border)'}`,
+        borderColor: active ? color : 'var(--border)',
         background: active ? `${color}18` : hovered ? 'var(--bg-hover)' : 'transparent',
         color: active ? color : 'var(--text3)',
-        fontSize: small ? 11 : 12,
-        fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-        whiteSpace: 'nowrap',
       }}
     >
       {label}
@@ -479,22 +321,9 @@ function FilterChip({ label, active, onClick, color = 'var(--blue)', small }) {
 
 function SkeletonRow() {
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '32px 36px 1fr 100px 110px 80px 80px',
-      gap: 12, padding: '11px 16px', alignItems: 'center',
-      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-      borderRadius: 12,
-    }}>
+    <div className="grid grid-cols-[32px_36px_1fr_100px_110px_80px_80px] gap-3 p-[11px_16px] items-center bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl">
       {[20, 36, 140, 70, 80, 50, 50].map((w, i) => (
-        <div key={i} style={{
-          width: w, height: i === 1 ? 36 : 14,
-          borderRadius: i === 1 ? '50%' : 4,
-          background: 'linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-elevated) 50%, var(--bg-hover) 75%)',
-          backgroundSize: '200% 100%',
-          animation: 'shimmer 1.4s infinite',
-          marginLeft: i >= 4 ? 'auto' : 0,
-        }} />
+        <div key={i} className={`h-3.5 bg-gradient-to-r from-[var(--bg-hover)] via-[var(--bg-elevated)] to-[var(--bg-hover)] bg-[length:200%_100%] animate-[shimmer_1.4s_infinite] ${i === 1 ? 'w-9 h-9 rounded-full' : 'rounded-[4px]'} ${i >= 4 ? 'ml-auto' : ''}`} style={{ width: i === 1 ? 36 : w }} />
       ))}
     </div>
   )

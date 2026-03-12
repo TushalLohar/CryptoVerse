@@ -1,34 +1,39 @@
-import { useState, useEffect } from 'react'
-import { fetchCoinDetail } from '../utils/marketAPI'
+import { useState, useEffect } from "react";
+import { fetchCoinDetail } from "../utils/marketAPI";
 
 export function useCoinDetail(id) {
-  const [coin,    setCoin]    = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(null)
+  const [coin, setCoin] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!id) return
+    if (!id) return;
 
-    const controller = new AbortController()
+    let cancelled = false;
 
-    const load = async () => {
-      setLoading(true)
-      setError(null)
+    async function load() {
+      setLoading(true);
+      setError(null);
 
-      const { data, error: err } = await fetchCoinDetail(id)
+      const { data, error: err } = await fetchCoinDetail(id);
 
-      if (controller.signal.aborted) return
+      if (cancelled) return;
 
-      if (err) setError(err)
-      else     setCoin(data)
+      if (err) {
+        setError(err);
+      } else {
+        setCoin(data);
+      }
 
-      setLoading(false)
+      setLoading(false);
     }
 
-    load()
-    return () => controller.abort()
+    load();
 
-  }, [id])  // re-fetch whenever the coin id changes
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
-  return { coin, loading, error }
+  return { coin, loading, error };
 }

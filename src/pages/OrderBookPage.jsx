@@ -13,6 +13,7 @@ const SYMBOLS = [
 
 const DEPTHS = [10, 15, 20]
 
+// --- Helper Functions (Logic remains identical) ---
 function fmtPrice(price, symbol) {
   const p = parseFloat(price)
   if (symbol.startsWith('btc')) return p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -39,12 +40,12 @@ export default function OrderBookPage() {
 
   const [symbol,   setSymbol]   = useState('btcusdt')
   const [depth,    setDepth]    = useState(15)
-  const [asks,     setAsks]     = useState([]) // sorted lowest first
-  const [bids,     setBids]     = useState([]) // sorted highest first
+  const [asks,     setAsks]     = useState([]) 
+  const [bids,     setBids]     = useState([]) 
   const [spread,   setSpread]   = useState(null)
   const [lastPrice,setLastPrice]= useState(null)
-  const [priceDir, setPriceDir] = useState(null) // 'up' | 'down'
-  const [trades,   setTrades]   = useState([])   // recent trades
+  const [priceDir, setPriceDir] = useState(null) 
+  const [trades,   setTrades]   = useState([])   
   const [connected,setConnected]= useState(false)
 
   const wsDepthRef  = useRef(null)
@@ -52,7 +53,6 @@ export default function OrderBookPage() {
   const prevPriceRef = useRef(null)
 
   useEffect(() => {
-    // Close existing connections
     wsDepthRef.current?.close()
     wsTradeRef.current?.close()
     setAsks([])
@@ -60,61 +60,34 @@ export default function OrderBookPage() {
     setTrades([])
     setConnected(false)
 
-    // Order book depth stream
-    const wsDepth = new WebSocket(
-      `wss://stream.binance.com:9443/ws/${symbol}@depth20@100ms`
-    )
+    const wsDepth = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@depth20@100ms`)
     wsDepthRef.current = wsDepth
-
     wsDepth.onopen  = () => setConnected(true)
     wsDepth.onclose = () => setConnected(false)
-
     wsDepth.onmessage = (e) => {
       const data = JSON.parse(e.data)
-
-      // asks: lowest ask price first
-      const newAsks = (data.asks || [])
-        .slice(0, depth)
-        .map(([price, qty]) => ({ price, qty }))
-
-      // bids: highest bid price first
-      const newBids = (data.bids || [])
-        .slice(0, depth)
-        .map(([price, qty]) => ({ price, qty }))
-
+      const newAsks = (data.asks || []).slice(0, depth).map(([price, qty]) => ({ price, qty }))
+      const newBids = (data.bids || []).slice(0, depth).map(([price, qty]) => ({ price, qty }))
       setAsks(newAsks)
       setBids(newBids)
-
       if (newAsks.length && newBids.length) {
         const spreadVal = parseFloat(newAsks[0].price) - parseFloat(newBids[0].price)
         setSpread(spreadVal.toFixed(4))
       }
     }
 
-    // Trade stream for last price + recent trades
-    const wsTrade = new WebSocket(
-      `wss://stream.binance.com:9443/ws/${symbol}@trade`
-    )
+    const wsTrade = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@trade`)
     wsTradeRef.current = wsTrade
-
     wsTrade.onmessage = (e) => {
       const trade = JSON.parse(e.data)
       const price = parseFloat(trade.p)
-
-      // Track price direction
       if (prevPriceRef.current !== null) {
         setPriceDir(price > prevPriceRef.current ? 'up' : price < prevPriceRef.current ? 'down' : null)
       }
       prevPriceRef.current = price
       setLastPrice(price)
-
-      // Add to recent trades (keep last 30)
       setTrades(prev => [{
-        id:     trade.t,
-        price:  trade.p,
-        qty:    trade.q,
-        isBuy:  !trade.m, // m = maker = sell
-        time:   new Date(trade.T),
+        id: trade.t, price: trade.p, qty: trade.q, isBuy: !trade.m, time: new Date(trade.T),
       }, ...prev].slice(0, 30))
     }
 
@@ -124,91 +97,54 @@ export default function OrderBookPage() {
     }
   }, [symbol, depth])
 
-  // Max qty for depth bar width calculation
   const maxBidQty = Math.max(...bids.map(b => parseFloat(b.qty)), 1)
   const maxAskQty = Math.max(...asks.map(a => parseFloat(a.qty)), 1)
-
-  // Total bid/ask volume for imbalance indicator
   const totalBidVol = bids.reduce((s, b) => s + parseFloat(b.qty), 0)
   const totalAskVol = asks.reduce((s, a) => s + parseFloat(a.qty), 0)
   const bidPct = totalBidVol / (totalBidVol + totalAskVol) * 100
 
   return (
-    <div style={{ animation: 'fadeUp 0.25s ease-out both' }}>
-
+    <div className="animate-[fadeUp_0.25s_ease-out_both]">
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', marginBottom: 20,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'rgba(61,142,248,0.12)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <BookOpen size={18} color="var(--blue)" />
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-[rgba(61,142,248,0.12)] flex items-center justify-center">
+            <BookOpen size={18} className="text-[var(--blue)]" />
           </div>
           <div>
-            <h1 style={{ color: 'var(--text1)', fontSize: 22, fontWeight: 700,
-              fontFamily: 'var(--ff-display)' }}>
-              Order Book
-            </h1>
-            <p style={{ color: 'var(--text3)', fontSize: 13, marginTop: 2 }}>
-              Live Binance order book · 100ms updates
-            </p>
+            <h1 className="text-[var(--text1)] text-[22px] font-bold font-[var(--ff-display)]">Order Book</h1>
+            <p className="text-[var(--text3)] text-[13px] mt-0.5">Live Binance order book · 100ms updates</p>
           </div>
         </div>
 
-        {/* Connection indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{
-            width: 7, height: 7, borderRadius: '50%',
-            background: connected ? 'var(--green)' : 'var(--red)',
-            boxShadow:  connected ? '0 0 6px var(--green)' : 'none',
-          }} />
-          <span style={{ color: 'var(--text3)', fontSize: 12, fontWeight: 600 }}>
-            {connected ? 'Connected' : 'Connecting...'}
-          </span>
+        <div className="flex items-center gap-1.5">
+          <div className={`w-[7px] h-[7px] rounded-full transition-all duration-300 ${connected ? 'bg-[var(--green)] shadow-[0_0_6px_var(--green)]' : 'bg-[var(--red)]'}`} />
+          <span className="text-[var(--text3)] text-xs font-semibold">{connected ? 'Connected' : 'Connecting...'}</span>
         </div>
       </div>
 
       {/* Controls */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
-        {/* Symbol selector */}
-        <div style={{ display: 'flex', gap: 4 }}>
+      <div className="flex gap-2.5 mb-4 items-center">
+        <div className="flex gap-1">
           {SYMBOLS.map(s => (
             <button
               key={s.value}
               onClick={() => setSymbol(s.value)}
-              style={{
-                padding: '6px 12px', borderRadius: 8, border: 'none',
-                background: symbol === s.value ? 'var(--blue)' : 'var(--bg-elevated)',
-                color:      symbol === s.value ? '#fff' : 'var(--text3)',
-                border:     `1px solid ${symbol === s.value ? 'var(--blue)' : 'var(--border)'}`,
-                fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
-              }}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all duration-150 cursor-pointer 
+                ${symbol === s.value ? 'bg-[var(--blue)] text-white border-[var(--blue)]' : 'bg-[var(--bg-elevated)] text-[var(--text3)] border-[var(--border)]'}`}
             >
               {s.label}
             </button>
           ))}
         </div>
-
-        <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-
-        {/* Depth selector */}
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="w-px h-5 bg-[var(--border)]" />
+        <div className="flex gap-1">
           {DEPTHS.map(d => (
             <button
               key={d}
               onClick={() => setDepth(d)}
-              style={{
-                padding: '6px 12px', borderRadius: 8,
-                background: depth === d ? 'var(--bg-hover)' : 'transparent',
-                border:     `1px solid ${depth === d ? 'var(--border-md)' : 'var(--border)'}`,
-                color:      depth === d ? 'var(--text1)' : 'var(--text3)',
-                fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              }}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors
+                ${depth === d ? 'bg-[var(--bg-hover)] text-[var(--text1)] border-[var(--border-md)]' : 'bg-transparent text-[var(--text3)] border-[var(--border)]'}`}
             >
               {d} levels
             </button>
@@ -216,256 +152,112 @@ export default function OrderBookPage() {
         </div>
       </div>
 
-      {/* Main layout — order book + trades */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16 }}>
-
-        {/* Order book */}
-        <div style={{
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, overflow: 'hidden',
-        }}>
-
+      {/* Main layout */}
+      <div className="grid grid-cols-[1fr_280px] gap-4">
+        
+        {/* Order Book Column */}
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl overflow-hidden flex flex-col">
           {/* Column headers */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-            padding: '10px 16px',
-            borderBottom: '1px solid var(--border)',
-            background: 'var(--bg-base)',
-          }}>
-            <span style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600 }}>
-              Price (USDT)
-            </span>
-            <span style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600,
-              textAlign: 'center' }}>
-              Amount ({symbol.replace('usdt', '').toUpperCase()})
-            </span>
-            <span style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600,
-              textAlign: 'right' }}>
-              Total
-            </span>
+          <div className="grid grid-cols-3 px-4 py-2.5 border-bottom border-[var(--border)] bg-[var(--bg-base)] text-[11px] font-bold text-[var(--text3)] uppercase tracking-wider">
+            <span>Price (USDT)</span>
+            <span className="text-center">Amount ({symbol.replace('usdt', '').toUpperCase()})</span>
+            <span className="text-right">Total</span>
           </div>
 
-          {/* Asks — displayed reversed so lowest ask is closest to spread */}
-          <div style={{ padding: '4px 0' }}>
+          {/* Asks */}
+          <div className="py-1">
             {[...asks].reverse().map((ask, i) => (
-              <OrderRow
-                key={`ask-${i}`}
-                price={ask.price}
-                qty={ask.qty}
-                isBid={false}
-                maxQty={maxAskQty}
-                symbol={symbol}
-              />
+              <OrderRow key={`ask-${i}`} price={ask.price} qty={ask.qty} isBid={false} maxQty={maxAskQty} symbol={symbol} />
             ))}
           </div>
 
-          {/* Spread */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 12, padding: '8px 16px',
-            background: 'var(--bg-base)',
-            borderTop: '1px solid var(--border)',
-            borderBottom: '1px solid var(--border)',
-          }}>
-            {/* Last price */}
-            <div style={{
-              color:      priceDir === 'up' ? 'var(--green)' : priceDir === 'down' ? 'var(--red)' : 'var(--text1)',
-              fontFamily: 'var(--ff-mono)',
-              fontWeight: 800,
-              fontSize:   20,
-              transition: 'color 0.3s',
-            }}>
+          {/* Spread / Last Price */}
+          <div className="flex items-center justify-center gap-3 py-2 bg-[var(--bg-base)] border-y border-[var(--border)]">
+            <div className={`font-[var(--ff-mono)] font-extrabold text-xl transition-colors duration-300 
+              ${priceDir === 'up' ? 'text-[var(--green)]' : priceDir === 'down' ? 'text-[var(--red)]' : 'text-[var(--text1)]'}`}>
               {lastPrice ? fmtPrice(lastPrice.toString(), symbol) : '—'}
             </div>
-
-            {/* Spread */}
             {spread && (
-              <div style={{
-                color: 'var(--text3)', fontSize: 11,
-                fontFamily: 'var(--ff-mono)',
-              }}>
-                Spread: {spread}
-              </div>
+              <div className="text-[var(--text3)] text-[11px] font-[var(--ff-mono)]">Spread: {spread}</div>
             )}
           </div>
 
           {/* Bids */}
-          <div style={{ padding: '4px 0' }}>
+          <div className="py-1">
             {bids.map((bid, i) => (
-              <OrderRow
-                key={`bid-${i}`}
-                price={bid.price}
-                qty={bid.qty}
-                isBid={true}
-                maxQty={maxBidQty}
-                symbol={symbol}
-              />
+              <OrderRow key={`bid-${i}`} price={bid.price} qty={bid.qty} isBid={true} maxQty={maxBidQty} symbol={symbol} />
             ))}
           </div>
 
-          {/* Bid/Ask imbalance bar */}
-          <div style={{
-            padding: '10px 16px',
-            borderTop: '1px solid var(--border)',
-            background: 'var(--bg-base)',
-          }}>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between',
-              marginBottom: 5,
-            }}>
-              <span style={{ color: 'var(--green)', fontSize: 11, fontWeight: 700 }}>
-                Bids {bidPct.toFixed(1)}%
-              </span>
-              <span style={{ color: 'var(--red)', fontSize: 11, fontWeight: 700 }}>
-                {(100 - bidPct).toFixed(1)}% Asks
-              </span>
+          {/* Imbalance bar */}
+          <div className="p-4 border-t border-[var(--border)] bg-[var(--bg-base)]">
+            <div className="flex justify-between mb-1.5 text-[11px] font-bold">
+              <span className="text-[var(--green)]">Bids {bidPct.toFixed(1)}%</span>
+              <span className="text-[var(--red)]">{(100 - bidPct).toFixed(1)}% Asks</span>
             </div>
-            <div style={{
-              height: 6, borderRadius: 3,
-              background: 'var(--border)', overflow: 'hidden',
-            }}>
-              <div style={{
-                height: '100%',
-                width: `${bidPct}%`,
-                background: 'linear-gradient(to right, var(--green), var(--blue))',
-                borderRadius: 3,
-                transition: 'width 0.3s',
-              }} />
+            <div className="h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-[var(--green)] to-[var(--blue)] transition-all duration-300" 
+                style={{ width: `${bidPct}%` }} 
+              />
             </div>
           </div>
         </div>
 
-        {/* Recent trades */}
-        <div style={{
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, overflow: 'hidden',
-          display: 'flex', flexDirection: 'column',
-        }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '10px 14px',
-            borderBottom: '1px solid var(--border)',
-            background: 'var(--bg-base)',
-          }}>
-            <Activity size={13} color="var(--text3)" />
-            <span style={{ color: 'var(--text2)', fontSize: 12, fontWeight: 700 }}>
-              Recent Trades
-            </span>
+        {/* Recent Trades Column */}
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl overflow-hidden flex flex-col h-fit max-h-[600px]">
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-[var(--border)] bg-[var(--bg-base)]">
+            <Activity size={13} className="text-[var(--text3)]" />
+            <span className="text-[var(--text2)] text-xs font-bold uppercase tracking-wide">Recent Trades</span>
+          </div>
+          
+          <div className="grid grid-cols-3 px-3.5 py-1.5 border-b border-[var(--border)] text-[10px] font-bold text-[var(--text3)] uppercase">
+            <span>Price</span>
+            <span className="text-center">Amount</span>
+            <span className="text-right">Time</span>
           </div>
 
-          {/* Trade headers */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-            padding: '6px 14px',
-            borderBottom: '1px solid var(--border)',
-          }}>
-            <span style={{ color: 'var(--text3)', fontSize: 10, fontWeight: 600 }}>Price</span>
-            <span style={{ color: 'var(--text3)', fontSize: 10, fontWeight: 600,
-              textAlign: 'center' }}>Amount</span>
-            <span style={{ color: 'var(--text3)', fontSize: 10, fontWeight: 600,
-              textAlign: 'right' }}>Time</span>
-          </div>
-
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div className="overflow-y-auto scrollbar-hide flex-1">
             {trades.map(trade => (
-              <div
-                key={trade.id}
-                style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-                  padding: '5px 14px', alignItems: 'center',
-                  transition: 'background 0.1s',
-                }}
-              >
-                <span style={{
-                  color:      trade.isBuy ? 'var(--green)' : 'var(--red)',
-                  fontFamily: 'var(--ff-mono)',
-                  fontSize:   11, fontWeight: 700,
-                }}>
+              <div key={trade.id} className="grid grid-cols-3 px-3.5 py-1.5 items-center hover:bg-[var(--bg-hover)] transition-colors">
+                <span className={`font-[var(--ff-mono)] text-[11px] font-bold ${trade.isBuy ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
                   {fmtPrice(trade.price, symbol)}
                 </span>
-                <span style={{
-                  color: 'var(--text2)', fontFamily: 'var(--ff-mono)',
-                  fontSize: 11, textAlign: 'center',
-                }}>
-                  {fmtAmount(trade.qty)}
-                </span>
-                <span style={{
-                  color: 'var(--text4)', fontFamily: 'var(--ff-mono)',
-                  fontSize: 10, textAlign: 'right',
-                }}>
-                  {trade.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                <span className="text-[var(--text2)] font-[var(--ff-mono)] text-[11px] text-center">{fmtAmount(trade.qty)}</span>
+                <span className="text-[var(--text4)] font-[var(--ff-mono)] text-[10px] text-right">
+                  {trade.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
                 </span>
               </div>
             ))}
             {trades.length === 0 && (
-              <div style={{
-                padding: 24, textAlign: 'center',
-                color: 'var(--text4)', fontSize: 12,
-              }}>
-                Waiting for trades...
-              </div>
+              <div className="p-6 text-center text-[var(--text4)] text-xs italic">Waiting for trades...</div>
             )}
           </div>
         </div>
       </div>
-
     </div>
   )
 }
 
-// ── Single order book row ──
 function OrderRow({ price, qty, isBid, maxQty, symbol }) {
   const pct = (parseFloat(qty) / maxQty) * 100
 
   return (
-    <div style={{
-      position:   'relative',
-      display:    'grid',
-      gridTemplateColumns: '1fr 1fr 1fr',
-      padding:    '3px 16px',
-      alignItems: 'center',
-    }}>
+    <div className="relative grid grid-cols-3 px-4 py-0.5 items-center group">
       {/* Depth bar background */}
-      <div style={{
-        position:   'absolute',
-        top: 0, bottom: 0,
-        right:      isBid ? 0 : 'auto',
-        left:       isBid ? 'auto' : 0,
-        width:      `${pct}%`,
-        background: isBid ? 'rgba(34,197,94,0.08)' : 'rgba(244,63,94,0.08)',
-        pointerEvents: 'none',
-        transition: 'width 0.15s',
-      }} />
+      <div 
+        className={`absolute top-0 bottom-0 pointer-events-none transition-all duration-150 
+          ${isBid ? 'right-0 bg-[rgba(34,197,94,0.08)]' : 'left-0 bg-[rgba(244,63,94,0.08)]'}`}
+        style={{ width: `${pct}%` }} 
+      />
 
-      {/* Price */}
-      <span style={{
-        color:      isBid ? 'var(--green)' : 'var(--red)',
-        fontFamily: 'var(--ff-mono)',
-        fontSize:   12, fontWeight: 700,
-        position:   'relative', zIndex: 1,
-      }}>
+      <span className={`relative z-1 font-[var(--ff-mono)] text-xs font-bold ${isBid ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
         {fmtPrice(price, symbol)}
       </span>
-
-      {/* Qty */}
-      <span style={{
-        color:      'var(--text2)',
-        fontFamily: 'var(--ff-mono)',
-        fontSize:   11,
-        textAlign:  'center',
-        position:   'relative', zIndex: 1,
-      }}>
+      <span className="relative z-1 text-[var(--text2)] font-[var(--ff-mono)] text-[11px] text-center">
         {fmtAmount(qty)}
       </span>
-
-      {/* Total */}
-      <span style={{
-        color:      'var(--text3)',
-        fontFamily: 'var(--ff-mono)',
-        fontSize:   11,
-        textAlign:  'right',
-        position:   'relative', zIndex: 1,
-      }}>
+      <span className="relative z-1 text-[var(--text3)] font-[var(--ff-mono)] text-[11px] text-right">
         {fmtTotal(price, qty)}
       </span>
     </div>

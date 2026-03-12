@@ -3,32 +3,26 @@ import { usePageTitle }        from '../hooks/usePageTitle'
 import { Fuel, Calculator, RefreshCw } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
-// Fetch live ETH gas from the Owlracle free API — no key needed
-// Falls back to simulated data if unavailable
+// --- Helper Functions (Logic remains identical) ---
 async function fetchGasData() {
   try {
     const res = await fetch('https://api.owlracle.info/v4/eth/gas?apikey=&accept=75')
     if (!res.ok) throw new Error('failed')
-    const data = await res.json()
-    return data
-  } catch {
-    return null
-  }
+    return await res.json()
+  } catch { return null }
 }
 
-// Simulate realistic gas data if API fails
 function simulateGas() {
   const base = 15 + Math.random() * 30
   return {
-    slow:     { maxFeePerGas: (base * 0.8).toFixed(2),  estimatedFee: (base * 0.8 * 21000 / 1e9 * 3200).toFixed(4) },
-    standard: { maxFeePerGas: base.toFixed(2),           estimatedFee: (base * 21000 / 1e9 * 3200).toFixed(4) },
-    fast:     { maxFeePerGas: (base * 1.2).toFixed(2),  estimatedFee: (base * 1.2 * 21000 / 1e9 * 3200).toFixed(4) },
-    instant:  { maxFeePerGas: (base * 1.5).toFixed(2),  estimatedFee: (base * 1.5 * 21000 / 1e9 * 3200).toFixed(4) },
+    slow:     { maxFeePerGas: (base * 0.8).toFixed(2) },
+    standard: { maxFeePerGas: base.toFixed(2) },
+    fast:     { maxFeePerGas: (base * 1.2).toFixed(2) },
+    instant:  { maxFeePerGas: (base * 1.5).toFixed(2) },
     baseFee:  (base * 0.75).toFixed(2),
   }
 }
 
-// Common DeFi operations and their gas limits
 const GAS_OPERATIONS = [
   { label: 'ETH Transfer',       gasLimit: 21_000   },
   { label: 'ERC-20 Transfer',    gasLimit: 65_000   },
@@ -67,39 +61,32 @@ export default function GasTrackerPage() {
   const load = async () => {
     setLoading(true)
     const data = await fetchGasData()
-
     let gasData
     if (data?.speeds) {
       const [slow, standard, fast, instant] = data.speeds
       gasData = {
-        slow:     { maxFeePerGas: slow?.maxFeePerGas     || 10, estimatedFee: slow?.estimatedFee     || 0 },
-        standard: { maxFeePerGas: standard?.maxFeePerGas || 15, estimatedFee: standard?.estimatedFee || 0 },
-        fast:     { maxFeePerGas: fast?.maxFeePerGas     || 20, estimatedFee: fast?.estimatedFee     || 0 },
-        instant:  { maxFeePerGas: instant?.maxFeePerGas  || 25, estimatedFee: instant?.estimatedFee  || 0 },
+        slow:     { maxFeePerGas: slow?.maxFeePerGas || 10 },
+        standard: { maxFeePerGas: standard?.maxFeePerGas || 15 },
+        fast:     { maxFeePerGas: fast?.maxFeePerGas || 20 },
+        instant:  { maxFeePerGas: instant?.maxFeePerGas || 25 },
         baseFee:  data.baseFee || 12,
       }
     } else {
       gasData = simulateGas()
     }
-
     setGas(gasData)
-
-    // Build 60-min history
     const baseGas = parseFloat(gasData.standard.maxFeePerGas)
     setHistory(Array.from({ length: 60 }, (_, i) => generateHistoryPoint(i, baseGas)))
-
     setLastUpdated(new Date())
     setLoading(false)
   }
 
   useEffect(() => {
     load()
-    // Refresh every 15 seconds
     const interval = setInterval(load, 15_000)
     return () => clearInterval(interval)
   }, [])
 
-  // Fetch ETH price
   useEffect(() => {
     fetch('/api/coingecko/simple/price?ids=ethereum&vs_currencies=usd')
       .then(r => r.json())
@@ -107,124 +94,62 @@ export default function GasTrackerPage() {
       .catch(() => {})
   }, [])
 
-  // Calculator
   const calcGweiValue = parseFloat(calcGwei) || (gas ? parseFloat(gas.standard.maxFeePerGas) : 20)
   const calcCostEth   = (calcGweiValue * calcOp.gasLimit) / 1e9
   const calcCostUsd   = calcCostEth * ethPrice
+  const currentGwei   = gas ? parseFloat(gas.standard.maxFeePerGas) : 0
 
-  const currentGwei = gas ? parseFloat(gas.standard.maxFeePerGas) : 0
   const networkStatus =
-    currentGwei < 10  ? { label: 'Very Low',  color: 'var(--green)'  } :
-    currentGwei < 20  ? { label: 'Low',        color: 'var(--green)'  } :
-    currentGwei < 40  ? { label: 'Normal',     color: 'var(--blue)'   } :
-    currentGwei < 80  ? { label: 'High',       color: 'var(--gold)'   } :
-                        { label: 'Very High',  color: 'var(--red)'    }
+    currentGwei < 10  ? { label: 'Very Low',  color: 'text-[var(--green)]', bg: 'bg-[rgba(34,197,94,0.12)]', border: 'border-[rgba(34,197,94,0.3)]' } :
+    currentGwei < 20  ? { label: 'Low',        color: 'text-[var(--green)]', bg: 'bg-[rgba(34,197,94,0.12)]', border: 'border-[rgba(34,197,94,0.3)]' } :
+    currentGwei < 40  ? { label: 'Normal',     color: 'text-[var(--blue)]',  bg: 'bg-[rgba(61,142,248,0.12)]', border: 'border-[rgba(61,142,248,0.3)]' } :
+    currentGwei < 80  ? { label: 'High',       color: 'text-[var(--gold)]',  bg: 'bg-[rgba(245,158,11,0.12)]', border: 'border-[rgba(245,158,11,0.3)]' } :
+                        { label: 'Very High',  color: 'text-[var(--red)]',   bg: 'bg-[rgba(244,63,94,0.12)]',  border: 'border-[rgba(244,63,94,0.3)]' }
 
   return (
-    <div style={{ animation: 'fadeUp 0.25s ease-out both' }}>
-
+    <div className="animate-[fadeUp_0.25s_ease-out_both]">
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', marginBottom: 24,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'rgba(245,158,11,0.12)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Fuel size={18} color="var(--gold)" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-[10px]">
+          <div className="w-9 h-9 rounded-[10px] bg-[rgba(245,158,11,0.12)] flex items-center justify-center">
+            <Fuel size={18} className="text-[var(--gold)]" />
           </div>
           <div>
-            <h1 style={{ color: 'var(--text1)', fontSize: 22, fontWeight: 700,
-              fontFamily: 'var(--ff-display)' }}>
-              Gas Tracker
-            </h1>
-            <p style={{ color: 'var(--text3)', fontSize: 13, marginTop: 2 }}>
+            <h1 className="text-[var(--text1)] text-[22px] font-bold font-[var(--ff-display)]">Gas Tracker</h1>
+            <p className="text-[var(--text3)] text-[13px] mt-0.5">
               Ethereum gas prices · updates every 15s
-              {lastUpdated && (
-                <span style={{ marginLeft: 8 }}>
-                  · last updated {lastUpdated.toLocaleTimeString()}
-                </span>
-              )}
+              {lastUpdated && <span className="ml-2">· last updated {lastUpdated.toLocaleTimeString()}</span>}
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Network status badge */}
-          <div style={{
-            padding: '5px 14px', borderRadius: 999,
-            background: `${networkStatus.color}22`,
-            border: `1px solid ${networkStatus.color}44`,
-            color: networkStatus.color,
-            fontSize: 12, fontWeight: 700,
-          }}>
+        <div className="flex items-center gap-2.5">
+          <div className={`px-3.5 py-1.5 rounded-full border text-xs font-bold ${networkStatus.color} ${networkStatus.bg} ${networkStatus.border}`}>
             {networkStatus.label} Gas
           </div>
-
-          <button
-            onClick={load}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px', borderRadius: 8,
-              border: '1px solid var(--border-md)',
-              background: 'transparent', color: 'var(--text2)',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            <RefreshCw size={12} />
-            Refresh
+          <button onClick={load} className="flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg border border-[var(--border-md)] bg-transparent text-[var(--text2)] text-xs font-semibold cursor-pointer">
+            <RefreshCw size={12} /> Refresh
           </button>
         </div>
       </div>
 
       {/* Gas speed cards */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: 12, marginBottom: 24,
-      }}>
+      <div className="grid grid-cols-4 gap-3 mb-6">
         {SPEED_CONFIG.map(({ key, label, time, color }) => {
           const speed = gas?.[key]
           return (
-            <div key={key} style={{
-              background:   'var(--bg-elevated)',
-              border:       `1px solid var(--border)`,
-              borderRadius: 14,
-              padding:      '16px 20px',
-              transition:   'border-color 0.15s',
-            }}>
-              <div style={{ color: 'var(--text3)', fontSize: 12, marginBottom: 10 }}>
-                {label}
-              </div>
-
+            <div key={key} className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl p-[16px_20px]">
+              <div className="text-[var(--text3)] text-xs mb-2.5">{label}</div>
               {loading || !speed ? (
-                <div style={{
-                  height: 32, borderRadius: 6,
-                  background: 'linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-elevated) 50%, var(--bg-hover) 75%)',
-                  backgroundSize: '200% 100%',
-                  animation: 'shimmer 1.4s infinite',
-                }} />
+                <div className="h-8 rounded-md bg-gradient-to-r from-[var(--bg-hover)] via-[var(--bg-elevated)] to-[var(--bg-hover)] bg-[length:200%_100%] animate-[shimmer_1.4s_infinite]" />
               ) : (
                 <>
-                  <div style={{
-                    color, fontFamily: 'var(--ff-mono)',
-                    fontSize: 26, fontWeight: 800, lineHeight: 1,
-                  }}>
+                  <div style={{ color }} className="font-[var(--ff-mono)] text-[26px] font-extrabold leading-none">
                     {parseFloat(speed.maxFeePerGas).toFixed(1)}
-                    <span style={{ fontSize: 13, fontWeight: 500,
-                      color: 'var(--text3)', marginLeft: 4 }}>
-                      Gwei
-                    </span>
+                    <span className="text-[13px] font-medium text-[var(--text3)] ml-1">Gwei</span>
                   </div>
-                  <div style={{ color: 'var(--text3)', fontSize: 12, marginTop: 6 }}>
-                    {time}
-                  </div>
-                  <div style={{
-                    color: 'var(--text2)', fontSize: 12,
-                    fontFamily: 'var(--ff-mono)', marginTop: 4,
-                  }}>
+                  <div className="text-[var(--text3)] text-xs mt-1.5">{time}</div>
+                  <div className="text-[var(--text2)] text-xs font-[var(--ff-mono)] mt-1">
                     ~${(parseFloat(speed.maxFeePerGas) * 21000 / 1e9 * ethPrice).toFixed(2)} transfer
                   </div>
                 </>
@@ -235,184 +160,91 @@ export default function GasTrackerPage() {
       </div>
 
       {/* Chart + Calculator row */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 380px',
-        gap: 16, marginBottom: 24,
-      }}>
-
-        {/* 60-min history chart */}
-        <div style={{
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, padding: '16px 20px',
-        }}>
-          <div style={{ color: 'var(--text2)', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
-            Gas Price History (last 60 min)
-          </div>
+      <div className="grid grid-cols-[1fr_380px] gap-4 mb-6">
+        {/* History chart */}
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl p-[16px_20px]">
+          <div className="text-[var(--text2)] text-[13px] font-semibold mb-4">Gas Price History (last 60 min)</div>
           <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={history}>
               <defs>
                 <linearGradient id="gasGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="var(--gold)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--gold)" stopOpacity={0}   />
+                  <stop offset="5%" stopColor="var(--gold)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--gold)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <XAxis
-                dataKey="time"
-                tick={{ fill: 'var(--text4)', fontSize: 10 }}
-                tickLine={false}
-                axisLine={false}
-                interval={9}
-              />
-              <YAxis
-                tick={{ fill: 'var(--text4)', fontSize: 10 }}
-                tickLine={false}
-                axisLine={false}
-                width={35}
-                tickFormatter={v => `${v.toFixed(0)}`}
-              />
+              <XAxis dataKey="time" tick={{ fill: 'var(--text4)', fontSize: 10 }} tickLine={false} axisLine={false} interval={9} />
+              <YAxis tick={{ fill: 'var(--text4)', fontSize: 10 }} tickLine={false} axisLine={false} width={35} tickFormatter={v => v.toFixed(0)} />
               <Tooltip
-                contentStyle={{
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-md)',
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
+                contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-md)', borderRadius: 8, fontSize: 12 }}
                 formatter={v => [`${v.toFixed(2)} Gwei`, 'Gas Price']}
                 labelStyle={{ color: 'var(--text3)' }}
                 itemStyle={{ color: 'var(--gold)' }}
               />
-              <Area
-                type="monotone"
-                dataKey="gwei"
-                stroke="var(--gold)"
-                strokeWidth={2}
-                fill="url(#gasGradient)"
-                dot={false}
-                animationDuration={300}
-              />
+              <Area type="monotone" dataKey="gwei" stroke="var(--gold)" strokeWidth={2} fill="url(#gasGradient)" dot={false} animationDuration={300} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Gas Calculator */}
-        <div style={{
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, padding: '16px 20px',
-        }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            color: 'var(--text2)', fontSize: 13, fontWeight: 600, marginBottom: 16,
-          }}>
-            <Calculator size={14} />
-            Gas Calculator
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl p-[16px_20px]">
+          <div className="flex items-center gap-2 text-[var(--text2)] text-[13px] font-semibold mb-4">
+            <Calculator size={14} /> Gas Calculator
           </div>
-
-          {/* Operation selector */}
-          <label style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600 }}>
-            Operation
-          </label>
-          <div style={{
-            display: 'flex', flexDirection: 'column', gap: 4,
-            marginTop: 6, marginBottom: 14,
-          }}>
+          <label className="text-[var(--text3)] text-[11px] font-semibold uppercase tracking-wider">Operation</label>
+          <div className="flex flex-col gap-1 mt-1.5 mb-3.5">
             {GAS_OPERATIONS.map(op => (
               <button
                 key={op.label}
                 onClick={() => setCalcOp(op)}
-                style={{
-                  display: 'flex', justifyContent: 'space-between',
-                  alignItems: 'center', padding: '7px 10px',
-                  borderRadius: 7,
-                  border: `1px solid ${calcOp.label === op.label ? 'var(--blue)' : 'var(--border)'}`,
-                  background: calcOp.label === op.label ? 'rgba(61,142,248,0.08)' : 'transparent',
-                  color: calcOp.label === op.label ? 'var(--blue)' : 'var(--text2)',
-                  fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 0.1s',
-                  textAlign: 'left',
-                }}
+                className={`flex justify-between items-center px-2.5 py-2 rounded-lg border text-xs font-medium transition-all duration-100 
+                  ${calcOp.label === op.label ? 'border-[var(--blue)] bg-[rgba(61,142,248,0.08)] text-[var(--blue)]' : 'border-[var(--border)] bg-transparent text-[var(--text2)] hover:bg-[var(--bg-hover)]'}`}
               >
                 <span>{op.label}</span>
-                <span style={{ color: 'var(--text4)', fontSize: 11,
-                  fontFamily: 'var(--ff-mono)' }}>
-                  {op.gasLimit.toLocaleString()} gas
-                </span>
+                <span className="text-[var(--text4)] font-[var(--ff-mono)] text-[11px]">{op.gasLimit.toLocaleString()} gas</span>
               </button>
             ))}
           </div>
 
-          {/* Gwei input */}
-          <label style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600 }}>
-            Gas Price (Gwei)
-          </label>
+          <label className="text-[var(--text3)] text-[11px] font-semibold uppercase tracking-wider">Gas Price (Gwei)</label>
           <input
             type="number"
             value={calcGwei}
             onChange={e => setCalcGwei(e.target.value)}
             placeholder={gas ? parseFloat(gas.standard.maxFeePerGas).toFixed(1) : '20'}
-            style={{
-              width: '100%', padding: '9px 12px', marginTop: 6,
-              background: 'var(--bg-base)', border: '1px solid var(--border-md)',
-              borderRadius: 8, color: 'var(--text1)', fontSize: 13,
-              outline: 'none', boxSizing: 'border-box',
-            }}
+            className="w-full px-3 py-2 mt-1.5 bg-[var(--bg-base)] border border-[var(--border-md)] rounded-lg text-[var(--text1)] text-[13px] outline-none focus:border-[var(--blue)] transition-colors"
           />
 
-          {/* Result */}
-          <div style={{
-            marginTop: 14, padding: '12px 14px',
-            background: 'var(--bg-base)', borderRadius: 10,
-            border: '1px solid var(--border)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ color: 'var(--text3)', fontSize: 12 }}>Cost (ETH)</span>
-              <span style={{ color: 'var(--text1)', fontSize: 13, fontWeight: 700,
-                fontFamily: 'var(--ff-mono)' }}>
-                Ξ{calcCostEth.toFixed(6)}
-              </span>
+          <div className="mt-3.5 p-3.5 bg-[var(--bg-base)] rounded-xl border border-[var(--border)]">
+            <div className="flex justify-between mb-1.5">
+              <span className="text-[var(--text3)] text-xs">Cost (ETH)</span>
+              <span className="text-[var(--text1)] text-[13px] font-bold font-[var(--ff-mono)]">Ξ{calcCostEth.toFixed(6)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text3)', fontSize: 12 }}>Cost (USD)</span>
-              <span style={{ color: 'var(--gold)', fontSize: 16, fontWeight: 800,
-                fontFamily: 'var(--ff-mono)' }}>
-                ${calcCostUsd.toFixed(2)}
-              </span>
+            <div className="flex justify-between">
+              <span className="text-[var(--text3)] text-xs">Cost (USD)</span>
+              <span className="text-[var(--gold)] text-base font-extrabold font-[var(--ff-mono)]">${calcCostUsd.toFixed(2)}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Base fee info */}
+      {/* Footer Info */}
       {gas && (
-        <div style={{
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, padding: '14px 20px',
-          display: 'flex', alignItems: 'center', gap: 20,
-        }}>
-          <div>
-            <span style={{ color: 'var(--text3)', fontSize: 12 }}>Base Fee</span>
-            <span style={{
-              color: 'var(--text1)', fontFamily: 'var(--ff-mono)',
-              fontWeight: 700, fontSize: 15, marginLeft: 10,
-            }}>
-              {parseFloat(gas.baseFee).toFixed(2)} Gwei
-            </span>
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl p-[14px_20px] flex items-center gap-5">
+          <div className="flex items-center">
+            <span className="text-[var(--text3)] text-xs">Base Fee</span>
+            <span className="text-[var(--text1)] font-[var(--ff-mono)] font-bold text-[15px] ml-2.5">{parseFloat(gas.baseFee).toFixed(2)} Gwei</span>
           </div>
-          <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-          <div>
-            <span style={{ color: 'var(--text3)', fontSize: 12 }}>ETH Price</span>
-            <span style={{
-              color: 'var(--text1)', fontFamily: 'var(--ff-mono)',
-              fontWeight: 700, fontSize: 15, marginLeft: 10,
-            }}>
-              ${ethPrice.toLocaleString()}
-            </span>
+          <div className="w-px h-5 bg-[var(--border)]" />
+          <div className="flex items-center">
+            <span className="text-[var(--text3)] text-xs">ETH Price</span>
+            <span className="text-[var(--text1)] font-[var(--ff-mono)] font-bold text-[15px] ml-2.5">${ethPrice.toLocaleString()}</span>
           </div>
-          <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-          <div style={{ color: 'var(--text3)', fontSize: 12 }}>
+          <div className="w-px h-5 bg-[var(--border)]" />
+          <div className="text-[var(--text3)] text-xs flex-1 text-right italic">
             Tip: Gas is cheapest on weekends and late nights UTC
           </div>
         </div>
       )}
-
     </div>
   )
 }

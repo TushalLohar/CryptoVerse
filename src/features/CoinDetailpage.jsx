@@ -1,190 +1,231 @@
-import { useState, useEffect }       from 'react'
-import { useParams, useNavigate }    from 'react-router-dom'
-import { ArrowLeft, ExternalLink, Star } from 'lucide-react'
-import { fetchCoinDetail }           from '../utils/marketAPI'
-import { useCurrency, CURRENCIES }   from '../context/CurrencyContext'
-import { useWatchlist }              from '../store/watchlistStore'
-import { usePageTitle }              from '../hooks/usePageTitle'
-import CandlestickChart              from '../components/CandlestickChart'
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, ExternalLink, Star } from "lucide-react";
+
+import { fetchCoinDetail } from "../utils/marketAPI";
+import { useCurrency, CURRENCIES } from "../context/CurrencyContext";
+import { useWatchlist } from "../store/watchlistStore";
+import { usePageTitle } from "../hooks/usePageTitle";
+import CandlestickChart from "../components/CandlestickChart";
 
 function fmtPrice(price, currency) {
-  if (price == null) return '—'
-  if (currency === 'btc') return `₿${price.toFixed(price < 0.001 ? 8 : 4)}`
-  if (currency === 'eth') return `Ξ${price.toFixed(price < 0.01  ? 6 : 4)}`
-  const sym = CURRENCIES.find(c => c.code === currency)?.symbol || '$'
-  return `${sym}${price.toLocaleString(undefined, {
-    minimumFractionDigits: price < 1 ? 4 : 2,
-    maximumFractionDigits: price < 1 ? 6 : 2,
-  })}`
+  if (price == null) return "—";
+
+  if (currency === "btc") return "₿" + price.toFixed(4);
+  if (currency === "eth") return "Ξ" + price.toFixed(4);
+
+  const sym = CURRENCIES.find((c) => c.code === currency)?.symbol || "$";
+
+  return (
+    sym +
+    price.toLocaleString(undefined, {
+      minimumFractionDigits: price < 1 ? 4 : 2,
+      maximumFractionDigits: price < 1 ? 6 : 2,
+    })
+  );
 }
 
-function fmtLarge(n, sym = '$') {
-  if (!n) return '—'
-  if (n >= 1e12) return `${sym}${(n / 1e12).toFixed(2)}T`
-  if (n >= 1e9)  return `${sym}${(n / 1e9).toFixed(2)}B`
-  if (n >= 1e6)  return `${sym}${(n / 1e6).toFixed(2)}M`
-  return `${sym}${n.toLocaleString()}`
+function fmtLarge(n, currency) {
+  if (!n) return "—";
+
+  const sym = CURRENCIES.find((c) => c.code === currency)?.symbol || "$";
+
+  if (n >= 1e12) return sym + (n / 1e12).toFixed(2) + "T";
+  if (n >= 1e9) return sym + (n / 1e9).toFixed(2) + "B";
+  if (n >= 1e6) return sym + (n / 1e6).toFixed(2) + "M";
+
+  return sym + n.toLocaleString();
 }
 
 function fmtPct(n) {
-  if (n == null) return '—'
-  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
+  if (n == null) return "—";
+  return (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
 }
 
 export default function CoinDetailPage() {
-  const { id }       = useParams()
-  const navigate     = useNavigate()
-  const { currency } = useCurrency()
-  const { toggle, has } = useWatchlist()
+  const { id } = useParams();
+  const navigate = useNavigate();
 
-  const [coin,    setCoin]    = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(null)
+  const { currency } = useCurrency();
+  const { toggle, has } = useWatchlist();
 
-  usePageTitle(coin ? `${coin.name} (${coin.symbol?.toUpperCase()})` : null)
+  const [coin, setCoin] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  usePageTitle(coin ? coin.name : null);
 
   useEffect(() => {
-    const controller = new AbortController()
+    async function load() {
+      setLoading(true);
 
-    const load = async () => {
-      setLoading(true)
-      setError(null)
-      const { data, error } = await fetchCoinDetail(id)
-      if (controller.signal.aborted) return
-      if (error) setError(error)
-      else setCoin(data)
-      setLoading(false)
+      const { data, error } = await fetchCoinDetail(id);
+
+      if (error) setError(error);
+      else setCoin(data);
+
+      setLoading(false);
     }
 
-    load()
-    return () => controller.abort()
-  }, [id])
+    load();
+  }, [id]);
 
-  if (loading) return <LoadingSkeleton />
+  if (loading) return <LoadingSkeleton />;
 
-  if (error || !coin) return (
-    <div style={{
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      minHeight: '50vh', gap: 12,
-    }}>
-      <p style={{ color: 'var(--text1)', fontSize: 16, fontWeight: 600 }}>
-        Could not load coin data
-      </p>
-      <button
-        onClick={() => navigate('/')}
-        style={{
-          padding: '8px 20px', borderRadius: 8, border: 'none',
-          background: 'var(--blue)', color: '#fff',
-          fontSize: 13, fontWeight: 600, cursor: 'pointer',
-        }}
-      >
-        Back to Markets
-      </button>
-    </div>
-  )
+  if (error || !coin)
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+        <p className="text-text-1 text-[16px] font-semibold">
+          Could not load coin data
+        </p>
 
-  const md        = coin.market_data
-  const price     = md?.current_price?.[currency]
-  const isWatched = has(coin.id)
+        <button
+          onClick={() => navigate("/")}
+          className="px-5 py-2 rounded-lg bg-blue text-white text-sm font-semibold"
+        >
+          Back to Markets
+        </button>
+      </div>
+    );
+
+  const md = coin.market_data;
+  const price = md?.current_price?.[currency];
+  const isWatched = has(coin.id);
 
   const priceStats = [
-    { label: '24h High',  value: fmtPrice(md?.high_24h?.[currency],  currency), color: 'var(--green)' },
-    { label: '24h Low',   value: fmtPrice(md?.low_24h?.[currency],   currency), color: 'var(--red)'   },
-    { label: 'ATH',       value: fmtPrice(md?.ath?.[currency],       currency), color: 'var(--gold)'  },
-    { label: 'ATL',       value: fmtPrice(md?.atl?.[currency],       currency), color: 'var(--text2)' },
-  ]
+    {
+      label: "24h High",
+      value: fmtPrice(md?.high_24h?.[currency], currency),
+      color: "text-green",
+    },
+
+    {
+      label: "24h Low",
+      value: fmtPrice(md?.low_24h?.[currency], currency),
+      color: "text-red",
+    },
+
+    {
+      label: "ATH",
+      value: fmtPrice(md?.ath?.[currency], currency),
+      color: "text-yellow-400",
+    },
+
+    {
+      label: "ATL",
+      value: fmtPrice(md?.atl?.[currency], currency),
+      color: "text-text-2",
+    },
+  ];
 
   const marketStats = [
-    { label: 'Market Cap',         value: fmtLarge(md?.market_cap?.[currency])     },
-    { label: '24h Volume',         value: fmtLarge(md?.total_volume?.[currency])   },
-    { label: 'Circulating Supply', value: md?.circulating_supply
-        ? `${(md.circulating_supply / 1e6).toFixed(2)}M ${coin.symbol?.toUpperCase()}` : '—' },
-    { label: 'Max Supply',         value: md?.max_supply
-        ? `${(md.max_supply / 1e6).toFixed(2)}M ${coin.symbol?.toUpperCase()}` : '∞' },
-    { label: 'Market Cap Rank',    value: coin.market_cap_rank ? `#${coin.market_cap_rank}` : '—' },
-    { label: 'Coingecko Rank',     value: coin.coingecko_rank  ? `#${coin.coingecko_rank}`  : '—' },
-  ]
+    {
+      label: "Market Cap",
+      value: fmtLarge(md?.market_cap?.[currency], currency),
+    },
+
+    {
+      label: "24h Volume",
+      value: fmtLarge(md?.total_volume?.[currency], currency),
+    },
+
+    {
+      label: "Circulating Supply",
+      value: md?.circulating_supply
+        ? (md.circulating_supply / 1e6).toFixed(2) +
+          "M " +
+          coin.symbol.toUpperCase()
+        : "—",
+    },
+
+    {
+      label: "Max Supply",
+      value: md?.max_supply
+        ? (md.max_supply / 1e6).toFixed(2) + "M " + coin.symbol.toUpperCase()
+        : "∞",
+    },
+
+    {
+      label: "Market Cap Rank",
+      value: coin.market_cap_rank ? "#" + coin.market_cap_rank : "—",
+    },
+
+    {
+      label: "Coingecko Rank",
+      value: coin.coingecko_rank ? "#" + coin.coingecko_rank : "—",
+    },
+  ];
 
   const changes = [
-    { label: '1h',  value: md?.price_change_percentage_1h_in_currency?.[currency]  },
-    { label: '24h', value: md?.price_change_percentage_24h_in_currency?.[currency] },
-    { label: '7d',  value: md?.price_change_percentage_7d_in_currency?.[currency]  },
-    { label: '14d', value: md?.price_change_percentage_14d_in_currency?.[currency] },
-    { label: '30d', value: md?.price_change_percentage_30d_in_currency?.[currency] },
-    { label: '1y',  value: md?.price_change_percentage_1y_in_currency?.[currency]  },
-  ]
+    {
+      label: "1h",
+      value: md?.price_change_percentage_1h_in_currency?.[currency],
+    },
+    {
+      label: "24h",
+      value: md?.price_change_percentage_24h_in_currency?.[currency],
+    },
+    {
+      label: "7d",
+      value: md?.price_change_percentage_7d_in_currency?.[currency],
+    },
+    {
+      label: "14d",
+      value: md?.price_change_percentage_14d_in_currency?.[currency],
+    },
+    {
+      label: "30d",
+      value: md?.price_change_percentage_30d_in_currency?.[currency],
+    },
+    {
+      label: "1y",
+      value: md?.price_change_percentage_1y_in_currency?.[currency],
+    },
+  ];
 
   return (
-    <div style={{ animation: 'fadeUp 0.25s ease-out both' }}>
+    <div className="animate-in fade-in duration-300">
+      {/* Back */}
 
-      {/* Back button */}
       <button
         onClick={() => navigate(-1)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          marginBottom: 20, padding: '6px 12px',
-          borderRadius: 8, border: '1px solid var(--border)',
-          background: 'transparent', color: 'var(--text3)',
-          fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          transition: 'all 0.15s',
-        }}
-        onMouseEnter={e => e.currentTarget.style.color = 'var(--text1)'}
-        onMouseLeave={e => e.currentTarget.style.color = 'var(--text3)'}
+        className="flex items-center gap-2 mb-5 px-3 py-1 border border-border rounded-lg text-text-3 hover:text-text-1"
       >
         <ArrowLeft size={14} />
         Back
       </button>
 
-      {/* Coin header */}
-      <div style={{
-        display:      'flex',
-        alignItems:   'center',
-        gap:          16,
-        marginBottom: 24,
-        flexWrap:     'wrap',
-      }}>
-        <img
-          src={coin.image?.large}
-          alt={coin.name}
-          style={{ width: 56, height: 56, borderRadius: '50%' }}
-        />
+      {/* Header */}
 
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{
-              color: 'var(--text1)', fontSize: 26,
-              fontWeight: 800, fontFamily: 'var(--ff-display)',
-            }}>
+      <div className="flex items-center gap-4 mb-6 flex-wrap">
+        <img src={coin.image?.large} className="w-14 h-14 rounded-full" />
+
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-[26px] font-bold font-display text-text-1">
               {coin.name}
             </h1>
-            <span style={{
-              color: 'var(--text3)', fontSize: 14,
-              fontFamily: 'var(--ff-mono)',
-              textTransform: 'uppercase',
-            }}>
+
+            <span className="text-text-3 uppercase font-mono">
               {coin.symbol}
             </span>
+
             {coin.market_cap_rank && (
-              <span style={{
-                padding: '2px 8px', borderRadius: 999,
-                background: 'var(--bg-hover)',
-                color: 'var(--text3)', fontSize: 11, fontWeight: 700,
-              }}>
+              <span className="px-2 py-0.5 rounded-full bg-bg-hover text-text-3 text-[11px] font-bold">
                 #{coin.market_cap_rank}
               </span>
             )}
           </div>
 
-          {/* Category tags */}
+          {/* Categories */}
+
           {coin.categories?.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-              {coin.categories.slice(0, 4).filter(Boolean).map(cat => (
-                <span key={cat} style={{
-                  padding: '2px 8px', borderRadius: 999,
-                  background: 'rgba(61,142,248,0.10)',
-                  color: 'var(--blue)', fontSize: 10, fontWeight: 600,
-                }}>
+            <div className="flex gap-2 mt-1 flex-wrap">
+              {coin.categories.slice(0, 4).map((cat) => (
+                <span
+                  key={cat}
+                  className="px-2 py-0.5 rounded-full bg-crypto-blue/10 text-crypto-blue text-[10px] font-semibold"
+                >
                   {cat}
                 </span>
               ))}
@@ -192,86 +233,60 @@ export default function CoinDetailPage() {
           )}
         </div>
 
-        {/* Watch + links */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        {/* Watch + Website */}
+
+        <div className="flex gap-2">
           <button
             onClick={() => toggle(coin.id)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', borderRadius: 8,
-              border: `1px solid ${isWatched ? 'var(--gold)' : 'var(--border-md)'}`,
-              background: isWatched ? 'rgba(245,158,11,0.10)' : 'transparent',
-              color: isWatched ? 'var(--gold)' : 'var(--text3)',
-              fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border
+          ${
+            isWatched
+              ? "border-yellow-400 text-yellow-400 bg-yellow-400/10"
+              : "border-border-md text-text-3"
+          }
+          `}
           >
-            <Star
-              size={14}
-              fill={isWatched ? 'var(--gold)' : 'none'}
-              color={isWatched ? 'var(--gold)' : 'var(--text3)'}
-            />
-            {isWatched ? 'Watching' : 'Watch'}
+            <Star size={14} />
+            {isWatched ? "Watching" : "Watch"}
           </button>
 
           {coin.links?.homepage?.[0] && (
             <a
-            
               href={coin.links.homepage[0]}
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 14px', borderRadius: 8,
-                border: '1px solid var(--border-md)',
-                color: 'var(--text3)', fontSize: 13, fontWeight: 600,
-                textDecoration: 'none', transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.color = 'var(--text1)'}
-              onMouseLeave={e => e.currentTarget.style.color = 'var(--text3)'}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border-md text-text-3 hover:text-text-1"
             >
-              <ExternalLink size={13} />
+              <ExternalLink size={14} />
               Website
             </a>
           )}
         </div>
       </div>
 
-      {/* Price + change */}
-      <div style={{
-        display:      'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap:          16,
-        marginBottom: 20,
-      }}>
-        {/* Current price */}
-        <div style={{
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, padding: '20px 24px',
-        }}>
-          <div style={{ color: 'var(--text3)', fontSize: 12, marginBottom: 8 }}>
-            Current Price
-          </div>
-          <div style={{
-            color: 'var(--text1)', fontSize: 36,
-            fontWeight: 800, fontFamily: 'var(--ff-mono)',
-            letterSpacing: '-0.02em',
-          }}>
+      {/* Price Section */}
+
+      <div className="grid grid-cols-2 gap-4 mb-5">
+        {/* Price card */}
+
+        <div className="bg-bg-elevated border border-border rounded-xl p-6">
+          <div className="text-text-3 text-xs mb-2">Current Price</div>
+
+          <div className="text-text-1 text-[36px] font-bold font-mono">
             {fmtPrice(price, currency)}
           </div>
-          <div style={{
-            display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap',
-          }}>
-            {changes.map(({ label, value }) => (
-              <div key={label}>
-                <div style={{ color: 'var(--text4)', fontSize: 10, marginBottom: 2 }}>
-                  {label}
-                </div>
-                <div style={{
-                  color: value == null ? 'var(--text3)' : value >= 0 ? 'var(--green)' : 'var(--red)',
-                  fontSize: 12, fontWeight: 700, fontFamily: 'var(--ff-mono)',
-                }}>
-                  {fmtPct(value)}
+
+          <div className="flex gap-4 mt-3 flex-wrap">
+            {changes.map((c) => (
+              <div key={c.label}>
+                <div className="text-text-4 text-[10px]">{c.label}</div>
+
+                <div
+                  className={`text-[12px] font-bold font-mono ${
+                    c.value >= 0 ? "text-crypto-green" : "text-crypto-red"
+                  }`}
+                >
+                  {fmtPct(c.value)}
                 </div>
               </div>
             ))}
@@ -279,130 +294,85 @@ export default function CoinDetailPage() {
         </div>
 
         {/* Price stats */}
-        <div style={{
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, padding: '20px 24px',
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
-        }}>
-          {priceStats.map(({ label, value, color }) => (
-            <div key={label}>
-              <div style={{ color: 'var(--text3)', fontSize: 11, marginBottom: 4 }}>
-                {label}
-              </div>
-              <div style={{
-                color, fontSize: 15, fontWeight: 700,
-                fontFamily: 'var(--ff-mono)',
-              }}>
-                {value}
-              </div>
+
+        <div className="bg-bg-elevated border border-border rounded-xl p-6 grid grid-cols-2 gap-4">
+          {priceStats.map((s) => (
+            <div key={s.label}>
+              <div className="text-text-3 text-xs">{s.label}</div>
+
+              <div className={`font-bold font-mono ${s.color}`}>{s.value}</div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Candlestick Chart */}
-      <div style={{
-        background:   'var(--bg-elevated)',
-        border:       '1px solid var(--border)',
-        borderRadius: 14,
-        padding:      '20px',
-        marginBottom: 20,
-      }}>
-        <CandlestickChart
-          coinId={coin.id}
-          currency={currency}
-          height={380}
-        />
+      {/* Chart */}
+
+      <div className="bg-bg-elevated border border-border rounded-xl p-5 mb-5">
+        <CandlestickChart coinId={coin.id} currency={currency} height={380} />
       </div>
 
-      {/* Market stats */}
-      <div style={{
-        background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-        borderRadius: 14, padding: '20px 24px', marginBottom: 20,
-      }}>
-        <div style={{ color: 'var(--text2)', fontSize: 13,
-          fontWeight: 700, marginBottom: 16 }}>
-          Market Stats
-        </div>
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 16,
-        }}>
-          {marketStats.map(({ label, value }) => (
-            <div key={label} style={{
-              padding: '12px 14px', borderRadius: 10,
-              background: 'var(--bg-base)', border: '1px solid var(--border)',
-            }}>
-              <div style={{ color: 'var(--text3)', fontSize: 11, marginBottom: 4 }}>
-                {label}
-              </div>
-              <div style={{
-                color: 'var(--text1)', fontSize: 14,
-                fontWeight: 700, fontFamily: 'var(--ff-mono)',
-              }}>
-                {value}
-              </div>
+      {/* Market Stats */}
+
+      <div className="bg-bg-elevated border border-border rounded-xl p-6 mb-6">
+        <div className="text-text-2 text-sm font-bold mb-4">Market Stats</div>
+
+        <div className="grid grid-cols-3 gap-4">
+          {marketStats.map((s) => (
+            <div
+              key={s.label}
+              className="p-3 bg-bg-base border border-border rounded-lg"
+            >
+              <div className="text-text-3 text-xs">{s.label}</div>
+
+              <div className="text-text-1 font-mono font-bold">{s.value}</div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Description */}
+      {/* About */}
+
       {coin.description?.en && (
-        <div style={{
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, padding: '20px 24px',
-        }}>
-          <div style={{ color: 'var(--text2)', fontSize: 13,
-            fontWeight: 700, marginBottom: 12 }}>
+        <div className="bg-bg-elevated border border-border rounded-xl p-6">
+          <div className="text-text-2 text-sm font-bold mb-3">
             About {coin.name}
           </div>
+
           <div
-            style={{
-              color: 'var(--text2)', fontSize: 13,
-              lineHeight: 1.7, maxHeight: 200,
-              overflowY: 'auto',
-            }}
+            className="text-text-2 text-sm leading-relaxed max-h-50 overflow-y-auto"
             dangerouslySetInnerHTML={{
               __html: coin.description.en
-                .split('. ').slice(0, 8).join('. ')
-                .replace(/<a /g, '<a style="color:var(--blue)" ')
+                .split(". ")
+                .slice(0, 8)
+                .join(". ")
+                .replace(/<a /g, '<a class="text-blue" '),
             }}
           />
         </div>
       )}
-
     </div>
-  )
+  );
 }
 
 function LoadingSkeleton() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <Shimmer width={56} height={56} radius="50%" />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Shimmer width={200} height={28} />
-          <Shimmer width={120} height={16} />
+    <div className="flex flex-col gap-4 animate-pulse">
+      <div className="flex gap-4 items-center">
+        <div className="w-14 h-14 rounded-full bg-bg-hover" />
+        <div className="space-y-2">
+          <div className="w-52 h-6 bg-bg-hover rounded" />
+          <div className="w-32 h-4 bg-bg-hover rounded" />
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <Shimmer height={140} />
-        <Shimmer height={140} />
-      </div>
-      <Shimmer height={420} />
-      <Shimmer height={200} />
-    </div>
-  )
-}
 
-function Shimmer({ width = '100%', height, radius = 10 }) {
-  return (
-    <div style={{
-      width, height, borderRadius: radius, flexShrink: 0,
-      background: 'linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-elevated) 50%, var(--bg-hover) 75%)',
-      backgroundSize: '200% 100%',
-      animation: 'shimmer 1.4s infinite',
-    }} />
-  )
+      <div className="grid grid-cols-2 gap-4">
+        <div className="h-35 bg-bg-hover rounded-xl" />
+        <div className="h-35 bg-bg-hover rounded-xl" />
+      </div>
+
+      <div className="h-105 bg-bg-hover rounded-xl" />
+      <div className="h-50 bg-bg-hover rounded-xl" />
+    </div>
+  );
 }

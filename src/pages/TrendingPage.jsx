@@ -1,331 +1,162 @@
 import { useState, useEffect } from 'react'
 import { useNavigate }         from 'react-router-dom'
-import { TrendingUp, Flame }   from 'lucide-react'
+import { TrendingUp, Flame, Star } from 'lucide-react'
 import { fetchTrending }       from '../utils/marketAPI'
 import { useWatchlist }        from '../store/watchlistStore'
-import { Star }                from 'lucide-react'
 
 export default function TrendingPage() {
-  const [data,    setData]    = useState(null)
+  const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(null)
+  const [error, setError]     = useState(null)
 
   useEffect(() => {
     const load = async () => {
-      setLoading(true)
-      const { data: d, error: err } = await fetchTrending()
-      if (err) setError(err)
-      else     setData(d)
-      setLoading(false)
+      try {
+        setLoading(true)
+        const { data: d, error: err } = await fetchTrending()
+        if (err) throw new Error(err)
+        setData(d)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [])
 
   if (loading) return <TrendingSkeleton />
-  if (error)   return (
-    <div style={{ color: 'var(--red)', padding: '2rem' }}>Error: {error}</div>
+  
+  if (error) return (
+    <div className="p-8 text-[var(--red)] bg-[var(--bg-elevated)] rounded-2xl border border-[var(--border)]">
+      <p className="font-bold">Error loading trending data:</p>
+      <p className="text-sm opacity-80">{error}</p>
+    </div>
   )
 
   const trendingCoins = data?.coins || []
   const trendingNfts  = data?.nfts  || []
 
   return (
-    <div style={{ animation: 'fadeUp 0.25s ease-out both' }}>
-
+    <div className="animate-[fadeUp_0.25s_ease-out_both] pb-10">
       {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-        <div style={{
-          width:          36,
-          height:         36,
-          borderRadius:   10,
-          background:     'rgba(245,158,11,0.15)',
-          display:        'flex',
-          alignItems:     'center',
-          justifyContent: 'center',
-        }}>
-          <Flame size={18} color="var(--gold)" />
+      <div className="flex items-center gap-3 mb-8">
+        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+          <Flame size={20} />
         </div>
         <div>
-          <h1 style={{
-            color:      'var(--text1)',
-            fontSize:   22,
-            fontWeight: 700,
-            fontFamily: 'var(--ff-display)',
-          }}>
+          <h1 className="text-[var(--text1)] text-2xl font-bold font-[var(--ff-display)] tracking-tight">
             Trending
           </h1>
-          <p style={{ color: 'var(--text3)', fontSize: 13, marginTop: 2 }}>
-            Most searched coins on CoinGecko in the last 24h
+          <p className="text-[var(--text3)] text-sm">
+            Most searched assets in the last 24h
           </p>
         </div>
       </div>
 
       {/* Two column layout */}
-      <div style={{
-        display:             'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap:                 16,
-        alignItems:          'start',
-      }}>
-
-        {/* ── Trending Coins ── */}
-        <div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        
+        {/* Trending Coins */}
+        <div className="flex flex-col gap-4">
           <SectionHeader icon={<TrendingUp size={14} />} title="Trending Coins" count={trendingCoins.length} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+          <div className="flex flex-col gap-2">
             {trendingCoins.map((item, index) => (
               <TrendingCoinRow key={item.item.id} coin={item.item} rank={index + 1} />
             ))}
           </div>
         </div>
 
-        {/* ── Trending NFTs ── */}
-        <div>
+        {/* Trending NFTs */}
+        <div className="flex flex-col gap-4">
           <SectionHeader icon={<Flame size={14} />} title="Trending NFTs" count={trendingNfts.length} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+          <div className="flex flex-col gap-2">
             {trendingNfts.map((nft, index) => (
               <TrendingNftRow key={nft.id} nft={nft} rank={index + 1} />
             ))}
           </div>
         </div>
-
       </div>
     </div>
   )
 }
 
-// ── Section header ──
+// --- Internal Components ---
+
 function SectionHeader({ icon, title, count }) {
   return (
-    <div style={{
-      display:     'flex',
-      alignItems:  'center',
-      gap:         8,
-      paddingBottom: 10,
-      borderBottom:  '1px solid var(--border)',
-    }}>
-      <span style={{ color: 'var(--text3)' }}>{icon}</span>
-      <span style={{
-        color:      'var(--text1)',
-        fontSize:   14,
-        fontWeight: 700,
-      }}>
-        {title}
-      </span>
-      <span style={{
-        color:        'var(--text3)',
-        fontSize:     11,
-        fontFamily:   'var(--ff-mono)',
-        background:   'var(--bg-hover)',
-        border:       '1px solid var(--border)',
-        borderRadius: 999,
-        padding:      '1px 7px',
-        marginLeft:   2,
-      }}>
+    <div className="flex items-center gap-2 pb-3 border-b border-[var(--border)]">
+      <span className="text-[var(--text3)]">{icon}</span>
+      <h2 className="text-[var(--text1)] text-sm font-bold uppercase tracking-wider">{title}</h2>
+      <span className="ml-auto text-[10px] font-mono font-bold bg-[var(--bg-hover)] border border-[var(--border)] rounded-full px-2 py-0.5 text-[var(--text3)]">
         {count}
       </span>
     </div>
   )
 }
 
-// ── Trending coin row ──
 function TrendingCoinRow({ coin, rank }) {
-  const [hovered, setHovered] = useState(false)
-  const navigate              = useNavigate()
-  const { toggle, has }       = useWatchlist()
-  const isWatched             = has(coin.id)
+  const navigate = useNavigate()
+  const { toggle, has } = useWatchlist()
+  const isWatched = has(coin.id)
 
   const change = coin.data?.price_change_percentage_24h?.usd
-  const isUp   = change >= 0
+  const isUp = change >= 0
 
   return (
     <div
       onClick={() => navigate(`/coin/${coin.id}`)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display:      'flex',
-        alignItems:   'center',
-        gap:          12,
-        padding:      '11px 14px',
-        background:   hovered ? 'var(--bg-hover)'  : 'var(--bg-elevated)',
-        border:       `1px solid ${hovered ? 'var(--border-md)' : 'var(--border)'}`,
-        borderRadius: 12,
-        cursor:       'pointer',
-        transition:   'all 0.15s',
-      }}
+      className="flex items-center gap-3 p-3 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl hover:bg-[var(--bg-hover)] hover:border-[var(--border-md)] transition-all cursor-pointer group"
     >
-      {/* Rank */}
-      <span style={{
-        color:      'var(--text4)',
-        fontSize:   11,
-        fontFamily: 'var(--ff-mono)',
-        minWidth:   16,
-        textAlign:  'center',
-      }}>
-        {rank}
-      </span>
-
-      {/* Logo */}
-      <img
-        src={coin.thumb}
-        alt={coin.name}
-        style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }}
-      />
-
-      {/* Name + symbol */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          color:        'var(--text1)',
-          fontWeight:   600,
-          fontSize:     13,
-          whiteSpace:   'nowrap',
-          overflow:     'hidden',
-          textOverflow: 'ellipsis',
-        }}>
-          {coin.name}
-        </div>
-        <div style={{
-          color:         'var(--text3)',
-          fontSize:      10,
-          fontFamily:    'var(--ff-mono)',
-          textTransform: 'uppercase',
-          marginTop:     1,
-        }}>
-          {coin.symbol}
-        </div>
+      <span className="w-5 text-center font-mono text-[11px] text-[var(--text4)] font-bold">{rank}</span>
+      <img src={coin.thumb} alt={coin.name} className="w-8 h-8 rounded-full shadow-sm" />
+      
+      <div className="flex-1 min-w-0">
+        <div className="text-[var(--text1)] font-bold text-sm truncate">{coin.name}</div>
+        <div className="text-[var(--text3)] text-[10px] font-mono font-bold uppercase">{coin.symbol}</div>
       </div>
 
-      {/* Price in BTC */}
-      <div style={{
-        color:      'var(--text2)',
-        fontSize:   12,
-        fontFamily: 'var(--ff-mono)',
-        flexShrink: 0,
-      }}>
-        {coin.data?.price_btc
-          ? `₿${parseFloat(coin.data.price_btc).toFixed(8)}`
-          : '—'
-        }
+      <div className="text-right flex flex-col items-end">
+        <span className="text-[var(--text2)] font-mono text-xs font-bold">
+          {coin.data?.price_btc ? `₿${parseFloat(coin.data.price_btc).toFixed(8)}` : '—'}
+        </span>
+        {change != null && (
+          <span className={`text-[10px] font-bold ${isUp ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+            {isUp ? '+' : ''}{change.toFixed(2)}%
+          </span>
+        )}
       </div>
 
-      {/* 24h change */}
-      {change != null && (
-        <div style={{
-          color:        isUp ? 'var(--green)' : 'var(--red)',
-          fontSize:     11,
-          fontWeight:   600,
-          fontFamily:   'var(--ff-mono)',
-          background:   isUp ? 'rgba(34,197,94,0.10)' : 'rgba(244,63,94,0.10)',
-          padding:      '2px 7px',
-          borderRadius: 6,
-          flexShrink:   0,
-        }}>
-          {isUp ? '+' : ''}{change.toFixed(2)}%
-        </div>
-      )}
-
-      {/* Star */}
       <button
         onClick={(e) => { e.stopPropagation(); toggle(coin.id) }}
-        style={{
-          display:        'flex',
-          alignItems:     'center',
-          justifyContent: 'center',
-          width:          26,
-          height:         26,
-          borderRadius:   6,
-          border:         'none',
-          background:     'transparent',
-          cursor:         'pointer',
-          flexShrink:     0,
-        }}
+        className="p-1.5 hover:bg-amber-500/10 rounded-lg transition-colors ml-1"
       >
-        <Star
-          size={13}
-          fill={isWatched ? 'var(--gold)' : 'none'}
-          color={isWatched ? 'var(--gold)' : 'var(--text4)'}
-          strokeWidth={2}
+        <Star 
+          size={14} 
+          fill={isWatched ? 'var(--gold)' : 'none'} 
+          className={isWatched ? 'text-[var(--gold)]' : 'text-[var(--text4)]'} 
         />
       </button>
     </div>
   )
 }
 
-// ── Trending NFT row ──
 function TrendingNftRow({ nft, rank }) {
-  const [hovered, setHovered] = useState(false)
-
   const change = nft.data?.floor_price_24h_percentage_change
-  const isUp   = change >= 0
+  const isUp = change >= 0
 
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display:      'flex',
-        alignItems:   'center',
-        gap:          12,
-        padding:      '11px 14px',
-        background:   hovered ? 'var(--bg-hover)'  : 'var(--bg-elevated)',
-        border:       `1px solid ${hovered ? 'var(--border-md)' : 'var(--border)'}`,
-        borderRadius: 12,
-        cursor:       'default',
-        transition:   'all 0.15s',
-      }}
-    >
-      {/* Rank */}
-      <span style={{
-        color:      'var(--text4)',
-        fontSize:   11,
-        fontFamily: 'var(--ff-mono)',
-        minWidth:   16,
-        textAlign:  'center',
-      }}>
-        {rank}
-      </span>
-
-      {/* Thumb */}
-      <img
-        src={nft.thumb}
-        alt={nft.name}
-        style={{ width: 28, height: 28, borderRadius: 6, flexShrink: 0 }}
-      />
-
-      {/* Name */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          color:        'var(--text1)',
-          fontWeight:   600,
-          fontSize:     13,
-          whiteSpace:   'nowrap',
-          overflow:     'hidden',
-          textOverflow: 'ellipsis',
-        }}>
-          {nft.name}
-        </div>
-        <div style={{
-          color:      'var(--text3)',
-          fontSize:   10,
-          fontFamily: 'var(--ff-mono)',
-          marginTop:  1,
-        }}>
-          Floor: {nft.data?.floor_price || '—'}
-        </div>
+    <div className="flex items-center gap-3 p-3 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl hover:border-[var(--border-md)] transition-all">
+      <span className="w-5 text-center font-mono text-[11px] text-[var(--text4)] font-bold">{rank}</span>
+      <img src={nft.thumb} alt={nft.name} className="w-8 h-8 rounded-lg shadow-sm" />
+      
+      <div className="flex-1 min-w-0">
+        <div className="text-[var(--text1)] font-bold text-sm truncate">{nft.name}</div>
+        <div className="text-[var(--text3)] text-[10px] font-mono font-bold truncate">Floor: {nft.data?.floor_price || '—'}</div>
       </div>
 
-      {/* 24h change */}
       {change != null && (
-        <div style={{
-          color:        isUp ? 'var(--green)' : 'var(--red)',
-          fontSize:     11,
-          fontWeight:   600,
-          fontFamily:   'var(--ff-mono)',
-          background:   isUp ? 'rgba(34,197,94,0.10)' : 'rgba(244,63,94,0.10)',
-          padding:      '2px 7px',
-          borderRadius: 6,
-          flexShrink:   0,
-        }}>
+        <div className={`px-2 py-1 rounded-lg text-[10px] font-bold font-mono ${isUp ? 'bg-green-500/10 text-[var(--green)]' : 'bg-red-500/10 text-[var(--red)]'}`}>
           {isUp ? '+' : ''}{parseFloat(change).toFixed(2)}%
         </div>
       )}
@@ -333,43 +164,26 @@ function TrendingNftRow({ nft, rank }) {
   )
 }
 
-// ── Loading skeleton ──
 function TrendingSkeleton() {
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-        <Shimmer width={36} height={36} radius={10} />
-        <div>
-          <Shimmer width={140} height={22} style={{ marginBottom: 6 }} />
-          <Shimmer width={200} height={13} />
+    <div className="animate-pulse">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="w-10 h-10 rounded-xl bg-[var(--bg-hover)]" />
+        <div className="space-y-2">
+          <div className="w-32 h-6 bg-[var(--bg-hover)] rounded" />
+          <div className="w-48 h-3 bg-[var(--bg-hover)] rounded" />
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <Shimmer width="100%" height={18} style={{ marginBottom: 8 }} />
-          {Array.from({ length: 7 }).map((_, i) => (
-            <Shimmer key={i} width="100%" height={54} radius={12} />
-          ))}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <Shimmer width="100%" height={18} style={{ marginBottom: 8 }} />
-          {Array.from({ length: 7 }).map((_, i) => (
-            <Shimmer key={i} width="100%" height={54} radius={12} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {[1, 2].map(col => (
+          <div key={col} className="space-y-4">
+            <div className="w-full h-4 bg-[var(--bg-hover)] rounded" />
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="w-full h-14 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl" />
+            ))}
+          </div>
+        ))}
       </div>
     </div>
-  )
-}
-
-function Shimmer({ width, height, radius = 4, style = {} }) {
-  return (
-    <div style={{
-      width, height, borderRadius: radius, flexShrink: 0,
-      background:     'linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-elevated) 50%, var(--bg-hover) 75%)',
-      backgroundSize: '200% 100%',
-      animation:      'shimmer 1.4s infinite',
-      ...style,
-    }} />
   )
 }

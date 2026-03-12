@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { FlaskConical, Play } from "lucide-react";
 import {
@@ -12,6 +12,8 @@ import {
   ReferenceLine,
 } from "recharts";
 import CandlestickChart from "../components/CandlestickChart";
+
+// ── Logic Functions ──
 
 async function fetchOHLCV(coinId, days = 365) {
   try {
@@ -44,7 +46,6 @@ function calcSMA(data, period) {
 function calcRSI(data, period = 14) {
   const rsi = new Array(data.length).fill(null);
   if (data.length < period + 1) return rsi;
-
   let gains = 0,
     losses = 0;
   for (let i = 1; i <= period; i++) {
@@ -52,11 +53,9 @@ function calcRSI(data, period = 14) {
     if (diff > 0) gains += diff;
     else losses -= diff;
   }
-
   let avgGain = gains / period;
   let avgLoss = losses / period;
   rsi[period] = 100 - 100 / (1 + avgGain / (avgLoss || 0.001));
-
   for (let i = period + 1; i < data.length; i++) {
     const diff = data[i].close - data[i - 1].close;
     avgGain = (avgGain * (period - 1) + Math.max(diff, 0)) / period;
@@ -67,16 +66,14 @@ function calcRSI(data, period = 14) {
 }
 
 function runBuyAndHold(data, initialCapital) {
-  if (!data.length) return null;
+  if (!data || !data.length) return null;
   const entryPrice = data[0].close;
   const shares = initialCapital / entryPrice;
-
   const equity = data.map((d) => ({
     date: d.date,
     equity: shares * d.close,
     price: d.close,
   }));
-
   return {
     equity,
     trades: [{ type: "buy", date: data[0].date, price: entryPrice }],
@@ -92,7 +89,6 @@ function runBuyAndHold(data, initialCapital) {
 function runMACrossover(data, shortPeriod, longPeriod, initialCapital) {
   const shortSMA = calcSMA(data, shortPeriod);
   const longSMA = calcSMA(data, longPeriod);
-
   let capital = initialCapital,
     shares = 0,
     inTrade = false;
@@ -103,7 +99,6 @@ function runMACrossover(data, shortPeriod, longPeriod, initialCapital) {
     const price = data[i].close;
     const s = shortSMA[i],
       l = longSMA[i];
-
     if (s !== null && l !== null && i > 0) {
       const prevS = shortSMA[i - 1],
         prevL = longSMA[i - 1];
@@ -139,11 +134,7 @@ function runMACrossover(data, shortPeriod, longPeriod, initialCapital) {
       signal: trades.find((t) => t.i === i)?.type || null,
     });
   }
-
-  if (inTrade) capital = shares * data.at(-1).close;
   const finalEquity = capital + shares * (data.at(-1)?.close || 0);
-  const sellTrades = trades.filter((t) => t.type === "sell");
-
   return {
     equity,
     trades,
@@ -151,12 +142,12 @@ function runMACrossover(data, shortPeriod, longPeriod, initialCapital) {
     finalEquity,
     maxDrawdown: calcMaxDrawdown(equity.map((e) => e.equity)),
     winRate:
-      sellTrades.length > 0
-        ? (sellTrades.filter((t) => t.returnPct > 0).length /
-            sellTrades.length) *
+      trades.filter((t) => t.type === "sell").length > 0
+        ? (trades.filter((t) => t.type === "sell" && t.returnPct > 0).length /
+            trades.filter((t) => t.type === "sell").length) *
           100
         : null,
-    numTrades: sellTrades.length,
+    numTrades: trades.filter((t) => t.type === "sell").length,
   };
 }
 
@@ -167,11 +158,9 @@ function runRSIStrategy(data, oversold, overbought, initialCapital) {
     inTrade = false;
   const trades = [],
     equity = [];
-
   for (let i = 0; i < data.length; i++) {
     const price = data[i].close;
     const rsi = rsiValues[i];
-
     if (rsi !== null) {
       if (rsi < oversold && !inTrade) {
         shares = capital / price;
@@ -201,10 +190,7 @@ function runRSIStrategy(data, oversold, overbought, initialCapital) {
       rsi,
     });
   }
-
   const finalEquity = capital + shares * (data.at(-1)?.close || 0);
-  const sellTrades = trades.filter((t) => t.type === "sell");
-
   return {
     equity,
     trades,
@@ -212,12 +198,12 @@ function runRSIStrategy(data, oversold, overbought, initialCapital) {
     finalEquity,
     maxDrawdown: calcMaxDrawdown(equity.map((e) => e.equity)),
     winRate:
-      sellTrades.length > 0
-        ? (sellTrades.filter((t) => t.returnPct > 0).length /
-            sellTrades.length) *
+      trades.filter((t) => t.type === "sell").length > 0
+        ? (trades.filter((t) => t.type === "sell" && t.returnPct > 0).length /
+            trades.filter((t) => t.type === "sell").length) *
           100
         : null,
-    numTrades: sellTrades.length,
+    numTrades: trades.filter((t) => t.type === "sell").length,
   };
 }
 
@@ -235,23 +221,22 @@ function calcMaxDrawdown(arr) {
 function generateSyntheticOHLCV(days) {
   let price = 45000 + Math.random() * 20000;
   return Array.from({ length: days + 1 }, (_, i) => {
-    const change = (Math.random() - 0.48) * 0.04;
-    price = price * (1 + change);
-    const open = price;
-    const close = price * (1 + (Math.random() - 0.5) * 0.02);
-    const high = Math.max(open, close) * (1 + Math.random() * 0.01);
-    const low = Math.min(open, close) * (1 - Math.random() * 0.01);
+    price = price * (1 + (Math.random() - 0.48) * 0.04);
+    const open = price,
+      close = price * (1 + (Math.random() - 0.5) * 0.02);
     const ts = Date.now() - (days - i) * 86400000;
     return {
       ts,
       date: new Date(ts).toLocaleDateString(),
       open,
-      high,
-      low,
+      high: Math.max(open, close) * 1.01,
+      low: Math.min(open, close) * 0.99,
       close,
     };
   });
 }
+
+// ── Constants ──
 
 const COINS = [
   { id: "bitcoin", label: "Bitcoin (BTC)" },
@@ -272,29 +257,7 @@ const TIMEFRAMES = [
   { value: 365, label: "1 Year" },
 ];
 
-const selectStyle = {
-  width: "100%",
-  padding: "9px 12px",
-  background: "var(--bg-base)",
-  border: "1px solid var(--border-md)",
-  borderRadius: 8,
-  color: "var(--text1)",
-  fontSize: 13,
-  outline: "none",
-  cursor: "pointer",
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "9px 12px",
-  background: "var(--bg-base)",
-  border: "1px solid var(--border-md)",
-  borderRadius: 8,
-  color: "var(--text1)",
-  fontSize: 13,
-  outline: "none",
-  boxSizing: "border-box",
-};
+// ── Component ──
 
 export default function BacktesterPage() {
   usePageTitle("Backtester");
@@ -312,16 +275,20 @@ export default function BacktesterPage() {
   const [result, setResult] = useState(null);
   const [bhResult, setBhResult] = useState(null);
 
-  const runStrategy = (data) => {
-    let res;
-    if (strategy === "buyhold") res = runBuyAndHold(data, capital);
-    else if (strategy === "ma")
-      res = runMACrossover(data, shortPeriod, longPeriod, capital);
-    else if (strategy === "rsi")
-      res = runRSIStrategy(data, oversold, overbought, capital);
-    setBhResult(runBuyAndHold(data, capital));
-    setResult(res);
-  };
+  const runStrategy = useCallback(
+    (data) => {
+      let res;
+      if (strategy === "buyhold") res = runBuyAndHold(data, capital);
+      else if (strategy === "ma")
+        res = runMACrossover(data, shortPeriod, longPeriod, capital);
+      else if (strategy === "rsi")
+        res = runRSIStrategy(data, oversold, overbought, capital);
+
+      setBhResult(runBuyAndHold(data, capital));
+      setResult(res);
+    },
+    [strategy, shortPeriod, longPeriod, oversold, overbought, capital],
+  );
 
   const loadAndRun = async () => {
     setLoading(true);
@@ -339,74 +306,27 @@ export default function BacktesterPage() {
   }, [strategy, shortPeriod, longPeriod, oversold, overbought, capital]);
 
   return (
-    <div style={{ animation: "fadeUp 0.25s ease-out both" }}>
+    <div className="animate-fadeUp">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginBottom: 24,
-        }}
-      >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "rgba(61,142,248,0.12)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <FlaskConical size={18} color="var(--blue)" />
+      <div className="flex items-center gap-2.5 mb-6">
+        <div className="w-9 h-9 rounded-[10px] bg-[rgba(61,142,248,0.12)] flex items-center justify-center">
+          <FlaskConical size={18} className="text-[#3d8ef8]" />
         </div>
         <div>
-          <h1
-            style={{
-              color: "var(--text1)",
-              fontSize: 22,
-              fontWeight: 700,
-              fontFamily: "var(--ff-display)",
-            }}
-          >
+          <h1 className="text-text-1 text-[22px] font-bold font-display">
             Strategy Backtester
           </h1>
-          <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 2 }}>
+          <p className="text-text-3 text-[13px] mt-0.5">
             Test trading strategies on historical price data
           </p>
         </div>
       </div>
 
-      {/* Config */}
-      <div
-        style={{
-          background: "var(--bg-elevated)",
-          border: "1px solid var(--border)",
-          borderRadius: 14,
-          padding: "20px",
-          marginBottom: 20,
-        }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr 1fr",
-            gap: 16,
-            marginBottom: 16,
-          }}
-        >
-          <div>
-            <label
-              style={{
-                color: "var(--text3)",
-                fontSize: 11,
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 6,
-              }}
-            >
+      {/* Config Panel */}
+      <div className="bg-bg-elevated border border-border rounded-[14px] p-5 mb-5 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div className="flex flex-col">
+            <label className="text-text-3 text-[11px] font-semibold mb-1.5 ml-1">
               Coin
             </label>
             <select
@@ -414,7 +334,7 @@ export default function BacktesterPage() {
               onChange={(e) =>
                 setCoin(COINS.find((c) => c.id === e.target.value))
               }
-              style={selectStyle}
+              className="w-full p-[9px_12px] bg-bg-base border border-border-md rounded-lg text-text-1 text-[13px] outline-none cursor-pointer hover:border-blue transition-colors"
             >
               {COINS.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -423,22 +343,14 @@ export default function BacktesterPage() {
               ))}
             </select>
           </div>
-          <div>
-            <label
-              style={{
-                color: "var(--text3)",
-                fontSize: 11,
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 6,
-              }}
-            >
+          <div className="flex flex-col">
+            <label className="text-text-3 text-[11px] font-semibold mb-1.5 ml-1">
               Timeframe
             </label>
             <select
               value={days}
               onChange={(e) => setDays(+e.target.value)}
-              style={selectStyle}
+              className="w-full p-[9px_12px] bg-bg-base border border-border-md rounded-lg text-text-1 text-[13px] outline-none cursor-pointer hover:border-blue transition-colors"
             >
               {TIMEFRAMES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -447,41 +359,25 @@ export default function BacktesterPage() {
               ))}
             </select>
           </div>
-          <div>
-            <label
-              style={{
-                color: "var(--text3)",
-                fontSize: 11,
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 6,
-              }}
-            >
-              Starting Capital ($)
+          <div className="flex flex-col">
+            <label className="text-text-3 text-[11px] font-semibold mb-1.5 ml-1">
+              Capital ($)
             </label>
             <input
               type="number"
               value={capital}
               onChange={(e) => setCapital(+e.target.value)}
-              style={inputStyle}
+              className="w-full p-[9px_12px] bg-bg-base border border-border-md rounded-lg text-text-1 text-[13px] outline-none focus:border-blue transition-colors"
             />
           </div>
-          <div>
-            <label
-              style={{
-                color: "var(--text3)",
-                fontSize: 11,
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 6,
-              }}
-            >
+          <div className="flex flex-col">
+            <label className="text-text-3 text-[11px] font-semibold mb-1.5 ml-1">
               Strategy
             </label>
             <select
               value={strategy}
               onChange={(e) => setStrategy(e.target.value)}
-              style={selectStyle}
+              className="w-full p-[9px_12px] bg-bg-base border border-border-md rounded-lg text-text-1 text-[13px] outline-none cursor-pointer hover:border-blue transition-colors"
             >
               {STRATEGIES.map((s) => (
                 <option key={s.key} value={s.key}>
@@ -492,24 +388,18 @@ export default function BacktesterPage() {
           </div>
         </div>
 
+        {/* Strategy Params */}
         {strategy === "ma" && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 16,
-              marginBottom: 16,
-            }}
-          >
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <ParamInput
-              label={`Short MA (${shortPeriod} days)`}
+              label={`Short MA (${shortPeriod}d)`}
               value={shortPeriod}
               min={5}
               max={50}
               onChange={setShortPeriod}
             />
             <ParamInput
-              label={`Long MA (${longPeriod} days)`}
+              label={`Long MA (${longPeriod}d)`}
               value={longPeriod}
               min={20}
               max={200}
@@ -517,16 +407,8 @@ export default function BacktesterPage() {
             />
           </div>
         )}
-
         {strategy === "rsi" && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 16,
-              marginBottom: 16,
-            }}
-          >
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <ParamInput
               label={`Oversold (${oversold})`}
               value={oversold}
@@ -547,489 +429,259 @@ export default function BacktesterPage() {
         <button
           onClick={loadAndRun}
           disabled={loading}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 24px",
-            borderRadius: 10,
-            border: "none",
-            background: loading ? "var(--bg-hover)" : "var(--blue)",
-            color: loading ? "var(--text4)" : "#fff",
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
+          className={`flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all shadow-md
+            ${
+              loading
+                ? "bg-bg-hover text-text-4 cursor-not-allowed"
+                : "bg-[#3d8ef8] text-white hover:bg-[#2b7ae6] hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.97]"
+            }`}
         >
-          <Play size={14} />
-          {loading ? "Running..." : "Run Backtest"}
+          <Play size={14} fill="currentColor" />
+          {loading ? "Running Simulation..." : "Run Backtest"}
         </button>
       </div>
 
-      {/* Candlestick Chart — always visible once coin is selected */}
-      <div
-        style={{
-          background: "var(--bg-elevated)",
-          border: "1px solid var(--border)",
-          borderRadius: 14,
-          padding: "20px",
-          marginBottom: 20,
-        }}
-      >
-        <div
-          style={{
-            color: "var(--text2)",
-            fontSize: 13,
-            fontWeight: 600,
-            marginBottom: 16,
-          }}
-        >
-          {coin.label} — Price Chart
+      {/* Main Context Chart */}
+      <div className="bg-bg-elevated border border-border rounded-[14px] p-5 mb-5 shadow-sm">
+        <div className="text-text-2 text-[13px] font-semibold mb-4">
+          {coin.label} — Historical Context
         </div>
-        <CandlestickChart coinId={coin.id} currency="usd" height={300} />
+        <div className="h-75">
+          <CandlestickChart coinId={coin.id} currency="usd" height={300} />
+        </div>
       </div>
 
-      {/* Results */}
+      {/* Results Section */}
       {result && bhResult && (
-        <>
-          {/* Stats */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 12,
-              marginBottom: 16,
-            }}
-          >
+        <div className="space-y-4">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <ResultCard
               label="Total Return"
               value={`${result.totalReturn >= 0 ? "+" : ""}${result.totalReturn.toFixed(2)}%`}
-              color={result.totalReturn >= 0 ? "var(--green)" : "var(--red)"}
+              color={
+                result.totalReturn >= 0 ? "text-green-500" : "text-red-500"
+              }
               sub={`B&H: ${bhResult.totalReturn.toFixed(2)}%`}
             />
             <ResultCard
-              label="Final Portfolio"
+              label="Final Equity"
               value={`$${result.finalEquity.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-              color="var(--text1)"
+              color="text-text-1"
               sub={`Started: $${capital.toLocaleString()}`}
             />
             <ResultCard
               label="Max Drawdown"
               value={`-${result.maxDrawdown.toFixed(2)}%`}
-              color="var(--red)"
+              color="text-red-500"
               sub={`B&H: -${bhResult.maxDrawdown.toFixed(2)}%`}
             />
             <ResultCard
-              label={strategy === "buyhold" ? "Strategy" : "Win Rate"}
+              label={strategy === "buyhold" ? "Type" : "Win Rate"}
               value={
                 result.winRate !== null
                   ? `${result.winRate.toFixed(1)}%`
                   : "Buy & Hold"
               }
-              color="var(--blue)"
+              color="text-blue"
               sub={
-                result.numTrades !== null
-                  ? `${result.numTrades} trades`
-                  : "Passive"
+                result.numTrades > 0 ? `${result.numTrades} Trades` : "Passive"
               }
             />
           </div>
 
-          {/* vs B&H banner */}
+          {/* Performance Banner */}
           <div
-            style={{
-              padding: "10px 16px",
-              borderRadius: 10,
-              marginBottom: 16,
-              background:
-                result.totalReturn > bhResult.totalReturn
-                  ? "rgba(34,197,94,0.08)"
-                  : "rgba(244,63,94,0.08)",
-              border: `1px solid ${
-                result.totalReturn > bhResult.totalReturn
-                  ? "rgba(34,197,94,0.2)"
-                  : "rgba(244,63,94,0.2)"
-              }`,
-              color:
-                result.totalReturn > bhResult.totalReturn
-                  ? "var(--green)"
-                  : "var(--red)",
-              fontSize: 13,
-              fontWeight: 600,
-            }}
+            className={`p-3 px-4 rounded-[10px] border text-[13px] font-semibold
+            ${result.totalReturn > bhResult.totalReturn ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500"}`}
           >
             {result.totalReturn > bhResult.totalReturn
               ? `✅ Strategy outperformed Buy & Hold by ${(result.totalReturn - bhResult.totalReturn).toFixed(2)}%`
               : `❌ Strategy underperformed Buy & Hold by ${(bhResult.totalReturn - result.totalReturn).toFixed(2)}%`}
           </div>
 
-          {/* Equity curve */}
-          <div
-            style={{
-              background: "var(--bg-elevated)",
-              border: "1px solid var(--border)",
-              borderRadius: 14,
-              padding: "20px",
-              marginBottom: 16,
-            }}
-          >
-            <div
-              style={{
-                color: "var(--text2)",
-                fontSize: 13,
-                fontWeight: 600,
-                marginBottom: 16,
-              }}
-            >
-              Equity Curve — Strategy vs Buy & Hold
+          {/* Equity Chart */}
+          <div className="bg-bg-elevated border border-border rounded-[14px] p-5 shadow-sm">
+            <div className="text-text-2 text-[13px] font-semibold mb-4">
+              Equity Curve — Strategy vs B&H
             </div>
-            {(() => {
-              const merged = result.equity.map((e, i) => ({
-                date: e.date,
-                strategy: e.equity,
-                buyhold: bhResult.equity[i]?.equity,
-              }));
-              return (
-                <ResponsiveContainer width="100%" height={260}>
-                  <LineChart data={merged}>
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fill: "var(--text4)", fontSize: 9 }}
-                      tickLine={false}
-                      axisLine={false}
-                      interval={Math.floor(merged.length / 6)}
-                    />
-                    <YAxis
-                      tick={{ fill: "var(--text4)", fontSize: 9 }}
-                      tickLine={false}
-                      axisLine={false}
-                      width={70}
-                      tickFormatter={(v) => `$${(v / 1000).toFixed(1)}K`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--bg-elevated)",
-                        border: "1px solid var(--border-md)",
-                        borderRadius: 8,
-                        fontSize: 11,
-                      }}
-                      formatter={(v, name) => [
-                        `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
-                        name === "strategy" ? "Strategy" : "Buy & Hold",
-                      ]}
-                      labelStyle={{ color: "var(--text3)" }}
-                    />
-                    <Legend
-                      formatter={(v) =>
-                        v === "strategy" ? "Strategy" : "Buy & Hold"
-                      }
-                      wrapperStyle={{ fontSize: 12, color: "var(--text2)" }}
-                    />
-                    <ReferenceLine
-                      y={capital}
-                      stroke="var(--border-md)"
-                      strokeDasharray="4 4"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="strategy"
-                      stroke="var(--blue)"
-                      strokeWidth={2}
-                      dot={false}
-                      animationDuration={500}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="buyhold"
-                      stroke="var(--text3)"
-                      strokeWidth={1.5}
-                      strokeDasharray="4 4"
-                      dot={false}
-                      animationDuration={500}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              );
-            })()}
-          </div>
-
-          {/* RSI chart */}
-          {strategy === "rsi" && result.equity[0]?.rsi !== undefined && (
-            <div
-              style={{
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--border)",
-                borderRadius: 14,
-                padding: "20px",
-                marginBottom: 16,
-              }}
-            >
-              <div
-                style={{
-                  color: "var(--text2)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  marginBottom: 16,
-                }}
-              >
-                RSI (14)
-              </div>
-              <ResponsiveContainer width="100%" height={160}>
-                <LineChart data={result.equity}>
+            <div className="h-65 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={result.equity.map((e, i) => ({
+                    date: e.date,
+                    strategy: e.equity,
+                    buyhold: bhResult.equity[i]?.equity,
+                  }))}
+                >
                   <XAxis
                     dataKey="date"
                     tick={{ fill: "var(--text4)", fontSize: 9 }}
-                    tickLine={false}
                     axisLine={false}
+                    tickLine={false}
                     interval={Math.floor(result.equity.length / 6)}
                   />
                   <YAxis
-                    domain={[0, 100]}
                     tick={{ fill: "var(--text4)", fontSize: 9 }}
-                    tickLine={false}
                     axisLine={false}
-                    width={30}
+                    tickLine={false}
+                    width={60}
+                    tickFormatter={(v) => `$${(v / 1000).toFixed(1)}K`}
                   />
                   <Tooltip
                     contentStyle={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-md)",
-                      borderRadius: 8,
-                      fontSize: 11,
+                      borderRadius: "8px",
+                      fontSize: "11px",
                     }}
-                    formatter={(v) => [v?.toFixed(2), "RSI"]}
-                    labelStyle={{ color: "var(--text3)" }}
-                    itemStyle={{ color: "var(--purple)" }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
                   />
                   <ReferenceLine
-                    y={oversold}
-                    stroke="var(--green)"
-                    strokeDasharray="4 4"
-                  />
-                  <ReferenceLine
-                    y={overbought}
-                    stroke="var(--red)"
-                    strokeDasharray="4 4"
-                  />
-                  <ReferenceLine
-                    y={50}
+                    y={capital}
                     stroke="var(--border-md)"
-                    strokeDasharray="2 4"
+                    strokeDasharray="4 4"
                   />
                   <Line
                     type="monotone"
-                    dataKey="rsi"
-                    stroke="var(--purple)"
-                    strokeWidth={1.5}
+                    dataKey="strategy"
+                    stroke="#3d8ef8"
+                    strokeWidth={2}
                     dot={false}
-                    animationDuration={500}
+                    name="Strategy"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="buyhold"
+                    stroke="var(--text3)"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 4"
+                    dot={false}
+                    name="Buy & Hold"
                   />
                 </LineChart>
               </ResponsiveContainer>
             </div>
+          </div>
+
+          {/* RSI Chart */}
+          {strategy === "rsi" && (
+            <div className="bg-bg-elevated border border-border rounded-[14px] p-5 shadow-sm">
+              <div className="text-text-2 text-[13px] font-semibold mb-4">
+                RSI (14)
+              </div>
+              <div className="h-35 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={result.equity}>
+                    <XAxis hide dataKey="date" />
+                    <YAxis
+                      domain={[0, 100]}
+                      tick={{ fontSize: 9 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <ReferenceLine
+                      y={oversold}
+                      stroke="var(--green)"
+                      strokeDasharray="4 4"
+                    />
+                    <ReferenceLine
+                      y={overbought}
+                      stroke="var(--red)"
+                      strokeDasharray="4 4"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="rsi"
+                      stroke="#a855f7"
+                      strokeWidth={1.5}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           )}
 
-          {/* Trade log */}
+          {/* Trade Log */}
           {result.trades.length > 0 && strategy !== "buyhold" && (
-            <div
-              style={{
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--border)",
-                borderRadius: 14,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  padding: "12px 16px",
-                  borderBottom: "1px solid var(--border)",
-                  background: "var(--bg-base)",
-                  color: "var(--text2)",
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
-              >
-                Trade Log ({result.trades.length} signals)
+            <div className="bg-bg-elevated border border-border rounded-[14px] overflow-hidden">
+              <div className="p-3 px-4 bg-bg-base border-b border-border text-text-2 text-[13px] font-bold">
+                Execution Log
               </div>
-              <div style={{ maxHeight: 280, overflowY: "auto" }}>
-                {result.trades.slice(0, 50).map((trade, i) => (
+              <div className="max-h-62.5 overflow-y-auto">
+                {result.trades.map((trade, i) => (
                   <div
                     key={i}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "60px 100px 120px 1fr",
-                      gap: 12,
-                      padding: "8px 16px",
-                      alignItems: "center",
-                      borderBottom:
-                        i < result.trades.length - 1
-                          ? "1px solid var(--border)"
-                          : "none",
-                      background:
-                        trade.type === "buy"
-                          ? "rgba(34,197,94,0.03)"
-                          : "rgba(244,63,94,0.03)",
-                    }}
+                    className={`grid grid-cols-4 gap-4 p-2 px-4 items-center border-b border-border/40 last:border-none ${trade.type === "buy" ? "bg-green-500/2" : "bg-red-500/2"}`}
                   >
                     <span
-                      style={{
-                        padding: "2px 8px",
-                        borderRadius: 6,
-                        background:
-                          trade.type === "buy"
-                            ? "rgba(34,197,94,0.12)"
-                            : "rgba(244,63,94,0.12)",
-                        color:
-                          trade.type === "buy" ? "var(--green)" : "var(--red)",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        width: "fit-content",
-                      }}
+                      className={`p-1 px-2 rounded-md text-[10px] font-bold uppercase w-fit ${trade.type === "buy" ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}
                     >
                       {trade.type}
                     </span>
-                    <span
-                      style={{
-                        color: "var(--text3)",
-                        fontSize: 11,
-                        fontFamily: "var(--ff-mono)",
-                      }}
-                    >
+                    <span className="text-text-3 text-[11px] font-mono">
                       {trade.date}
                     </span>
-                    <span
-                      style={{
-                        color: "var(--text1)",
-                        fontSize: 12,
-                        fontFamily: "var(--ff-mono)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      $
-                      {trade.price.toLocaleString(undefined, {
-                        maximumFractionDigits: 2,
-                      })}
+                    <span className="text-text-1 text-[12px] font-bold font-mono">
+                      ${trade.price.toLocaleString()}
                     </span>
-                    {trade.returnPct !== undefined && (
-                      <span
-                        style={{
-                          color:
-                            trade.returnPct >= 0
-                              ? "var(--green)"
-                              : "var(--red)",
-                          fontFamily: "var(--ff-mono)",
-                          fontSize: 12,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {trade.returnPct >= 0 ? "+" : ""}
-                        {trade.returnPct.toFixed(2)}%
-                      </span>
-                    )}
+                    <span
+                      className={`text-[12px] font-bold font-mono text-right ${trade.returnPct >= 0 ? "text-green-500" : "text-red-500"}`}
+                    >
+                      {trade.returnPct !== undefined
+                        ? `${trade.returnPct >= 0 ? "+" : ""}${trade.returnPct.toFixed(2)}%`
+                        : "—"}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
 
+      {/* Loading & Empty states */}
       {!result && !loading && (
-        <div
-          style={{
-            padding: 48,
-            textAlign: "center",
-            background: "var(--bg-elevated)",
-            border: "1px solid var(--border)",
-            borderRadius: 14,
-            color: "var(--text3)",
-            fontSize: 14,
-          }}
-        >
+        <div className="p-12 text-center bg-bg-elevated border border-border rounded-[14px] text-text-3 text-sm">
           Configure your strategy above and click Run Backtest
         </div>
       )}
-
       {loading && (
-        <div
-          style={{
-            padding: 48,
-            textAlign: "center",
-            background: "var(--bg-elevated)",
-            border: "1px solid var(--border)",
-            borderRadius: 14,
-            color: "var(--text3)",
-            fontSize: 14,
-          }}
-        >
-          Running backtest...
+        <div className="p-12 text-center bg-bg-elevated border border-border rounded-[14px] text-text-3 text-sm animate-pulse">
+          Running simulation...
         </div>
       )}
 
-      <div
-        style={{
-          marginTop: 16,
-          padding: "10px 16px",
-          borderRadius: 10,
-          background: "rgba(245,158,11,0.06)",
-          border: "1px solid rgba(245,158,11,0.15)",
-          color: "var(--text4)",
-          fontSize: 11,
-        }}
-      >
-        ⚠️ Past performance does not guarantee future results. This backtester
-        does not account for slippage, exchange fees, or liquidity constraints.
-        For educational purposes only.
+      {/* Warning */}
+      <div className="mt-5 p-3 px-4 rounded-[10px] bg-yellow-500/5 border border-yellow-500/15 text-text-4 text-[11px] leading-relaxed italic">
+        ⚠️ This backtester uses historical data and does not account for
+        slippage or exchange fees. Educational purposes only.
       </div>
     </div>
   );
 }
 
+// ── Sub Components ──
+
 function ResultCard({ label, value, color, sub }) {
   return (
-    <div
-      style={{
-        background: "var(--bg-elevated)",
-        border: "1px solid var(--border)",
-        borderRadius: 12,
-        padding: "14px 18px",
-      }}
-    >
-      <div style={{ color: "var(--text3)", fontSize: 11, marginBottom: 6 }}>
+    <div className="bg-bg-elevated border border-border rounded-xl p-4 shadow-sm">
+      <div className="text-text-3 text-[11px] font-semibold mb-1.5">
         {label}
       </div>
-      <div
-        style={{
-          color,
-          fontSize: 20,
-          fontWeight: 800,
-          fontFamily: "var(--ff-mono)",
-        }}
-      >
-        {value}
-      </div>
-      {sub && (
-        <div style={{ color: "var(--text4)", fontSize: 11, marginTop: 4 }}>
-          {sub}
-        </div>
-      )}
+      <div className={`text-xl font-extrabold font-mono ${color}`}>{value}</div>
+      <div className="text-text-4 text-[11px] mt-1">{sub}</div>
     </div>
   );
 }
 
 function ParamInput({ label, value, min, max, onChange }) {
   return (
-    <div>
-      <label
-        style={{
-          color: "var(--text3)",
-          fontSize: 11,
-          fontWeight: 600,
-          display: "block",
-          marginBottom: 6,
-        }}
-      >
+    <div className="flex flex-col flex-1">
+      <label className="text-text-3 text-[11px] font-semibold mb-1.5 ml-1">
         {label}
       </label>
       <input
@@ -1038,7 +690,7 @@ function ParamInput({ label, value, min, max, onChange }) {
         max={max}
         value={value}
         onChange={(e) => onChange(+e.target.value)}
-        style={{ width: "100%", accentColor: "var(--blue)" }}
+        className="w-full h-1.5 bg-bg-base rounded-lg appearance-none cursor-pointer accent-blue"
       />
     </div>
   );

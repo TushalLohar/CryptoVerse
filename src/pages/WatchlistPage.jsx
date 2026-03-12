@@ -1,285 +1,275 @@
 import { useState, useEffect } from 'react'
-import { useNavigate }         from 'react-router-dom'
-import { Star }                from 'lucide-react'
-import { useWatchlist }        from '../store/watchlistStore'
+import { useNavigate } from 'react-router-dom'
+import { Star } from 'lucide-react'
+import { useWatchlist } from '../store/watchlistStore'
 import { useCurrency, CURRENCIES } from '../context/CurrencyContext'
 import { fetchPortfolioCoins } from '../utils/marketAPI'
 
 function fmtPrice(price, currency) {
   if (price == null) return '—'
+
   if (currency === 'btc') return `₿${price.toFixed(price < 0.001 ? 8 : 4)}`
-  if (currency === 'eth') return `Ξ${price.toFixed(price < 0.01  ? 6 : 4)}`
+  if (currency === 'eth') return `Ξ${price.toFixed(price < 0.01 ? 6 : 4)}`
+
   const sym = CURRENCIES.find(c => c.code === currency)?.symbol || '$'
-  return `${sym}${price.toLocaleString(undefined, {
+
+  return `${sym}${price.toLocaleString(undefined,{
     minimumFractionDigits: price < 1 ? 4 : 2,
     maximumFractionDigits: price < 1 ? 6 : 2,
   })}`
 }
 
 export default function WatchlistPage() {
-  const { ids, toggle }  = useWatchlist()
-  const { currency }     = useCurrency()
-  const navigate         = useNavigate()
 
-  const [coins,   setCoins]   = useState([])
-  const [loading, setLoading] = useState(false)
+  const { ids, toggle } = useWatchlist()
+  const { currency } = useCurrency()
+  const navigate = useNavigate()
 
-  // Fetch prices for watchlisted coins whenever ids or currency changes
-  useEffect(() => {
-    if (!ids.length) return
+  const [coins,setCoins] = useState([])
+  const [loading,setLoading] = useState(false)
+
+  useEffect(()=>{
+
+    if(!ids.length) return
 
     const load = async () => {
+
       setLoading(true)
-      const { data } = await fetchPortfolioCoins(ids, currency)
+
+      const { data } = await fetchPortfolioCoins(ids,currency)
+
       setCoins(data || [])
+
       setLoading(false)
+
     }
 
     load()
-  }, [ids, currency])
 
-  // Empty state
-  if (!ids.length) return (
-    <div style={{ animation: 'fadeUp 0.25s ease-out both' }}>
-      <h1 style={{
-        color:        'var(--text1)',
-        fontSize:     22,
-        fontWeight:   700,
-        fontFamily:   'var(--ff-display)',
-        marginBottom: 8,
-      }}>
+  },[ids,currency])
+
+
+
+  if(!ids.length) return (
+
+    <div className="animate-[fadeUp_0.25s_ease-out_both]">
+
+      <h1 className="text-[22px] font-bold text-[var(--text1)] font-[var(--ff-display)] mb-2">
         Watchlist
       </h1>
-      <p style={{ color: 'var(--text3)', fontSize: 14, marginBottom: 32 }}>
+
+      <p className="text-[14px] text-[var(--text3)] mb-8">
         Your saved coins will appear here.
       </p>
 
-      {/* Empty state card */}
-      <div style={{
-        background:     'var(--bg-elevated)',
-        border:         '1px solid var(--border)',
-        borderRadius:   16,
-        padding:        48,
-        textAlign:      'center',
-        display:        'flex',
-        flexDirection:  'column',
-        alignItems:     'center',
-        gap:            12,
-      }}>
-        <div style={{
-          width:          52,
-          height:         52,
-          borderRadius:   '50%',
-          background:     'var(--bg-hover)',
-          display:        'flex',
-          alignItems:     'center',
-          justifyContent: 'center',
-        }}>
-          <Star size={22} color="var(--text4)" />
+
+      <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[16px] p-12 text-center flex flex-col items-center gap-3">
+
+        <div className="w-[52px] h-[52px] rounded-full bg-[var(--bg-hover)] flex items-center justify-center">
+          <Star size={22} className="text-[var(--text4)]"/>
         </div>
-        <p style={{ color: 'var(--text2)', fontSize: 15, fontWeight: 600 }}>
+
+        <p className="text-[15px] font-semibold text-[var(--text2)]">
           No coins yet
         </p>
-        <p style={{ color: 'var(--text3)', fontSize: 13 }}>
+
+        <p className="text-[13px] text-[var(--text3)]">
           Click the ★ on any coin in Markets to add it here
         </p>
+
         <button
-          onClick={() => navigate('/')}
-          style={{
-            marginTop:    8,
-            padding:      '8px 20px',
-            borderRadius: 8,
-            border:       'none',
-            background:   'var(--blue)',
-            color:        '#fff',
-            fontSize:     13,
-            fontWeight:   600,
-            cursor:       'pointer',
-          }}
+        onClick={()=>navigate('/')}
+        className="mt-2 px-5 py-2 rounded-[8px] bg-[var(--blue)] text-white text-[13px] font-semibold"
         >
           Browse Markets
         </button>
+
       </div>
+
     </div>
+
   )
 
-  return (
-    <div style={{ animation: 'fadeUp 0.25s ease-out both' }}>
 
-      {/* Header */}
-      <div style={{
-        display:        'flex',
-        alignItems:     'center',
-        justifyContent: 'space-between',
-        marginBottom:   20,
-      }}>
+
+  return (
+
+    <div className="animate-[fadeUp_0.25s_ease-out_both]">
+
+
+      <div className="flex items-center justify-between mb-5">
+
         <div>
-          <h1 style={{
-            color:      'var(--text1)',
-            fontSize:   22,
-            fontWeight: 700,
-            fontFamily: 'var(--ff-display)',
-          }}>
+
+          <h1 className="text-[22px] font-bold text-[var(--text1)] font-[var(--ff-display)]">
             Watchlist
           </h1>
-          <p style={{ color: 'var(--text3)', fontSize: 13, marginTop: 4 }}>
+
+          <p className="text-[13px] text-[var(--text3)] mt-1">
             {ids.length} coin{ids.length !== 1 ? 's' : ''} tracked
           </p>
+
         </div>
+
       </div>
 
-      {/* Column headers */}
-      <div style={{
-        display:             'grid',
-        gridTemplateColumns: '32px 1fr 120px 90px 32px',
-        gap:                 14,
-        padding:             '0 18px 8px',
-        alignItems:          'center',
-      }}>
-        <span />
-        <span style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600 }}>Name</span>
-        <span style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600, textAlign: 'right' }}>Price</span>
-        <span style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600, textAlign: 'right' }}>24h %</span>
-        <span />
+
+
+      <div className="grid grid-cols-[32px_1fr_120px_90px_32px] gap-[14px] px-[18px] pb-[8px] items-center">
+
+        <span/>
+
+        <span className="text-[11px] font-semibold text-[var(--text3)]">
+          Name
+        </span>
+
+        <span className="text-[11px] font-semibold text-[var(--text3)] text-right">
+          Price
+        </span>
+
+        <span className="text-[11px] font-semibold text-[var(--text3)] text-right">
+          24h %
+        </span>
+
+        <span/>
+
       </div>
 
-      {/* Coin rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+
+
+      <div className="flex flex-col gap-1">
+
         {loading
-          ? Array.from({ length: ids.length }).map((_, i) => (
-              <WatchSkeletonRow key={i} />
+          ? Array.from({ length: ids.length }).map((_,i)=>(
+              <WatchSkeletonRow key={i}/>
             ))
-          : coins.map((coin) => (
+
+          : coins.map(coin=>(
               <WatchCoinRow
                 key={coin.id}
                 coin={coin}
                 currency={currency}
-                onRemove={() => toggle(coin.id)}
-                onClick={() => navigate(`/coin/${coin.id}`)}
+                onRemove={()=>toggle(coin.id)}
+                onClick={()=>navigate(`/coin/${coin.id}`)}
               />
             ))
         }
+
       </div>
+
     </div>
+
   )
+
 }
 
-function WatchCoinRow({ coin, currency, onRemove, onClick }) {
-  const [hovered, setHovered] = useState(false)
+function WatchCoinRow({ coin,currency,onRemove,onClick }) {
+
   const change = coin.price_change_percentage_24h
-  const isUp   = change >= 0
+  const isUp = change >= 0
 
   return (
+
     <div
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display:             'grid',
-        gridTemplateColumns: '32px 1fr 120px 90px 32px',
-        gap:                 14,
-        padding:             '12px 18px',
-        alignItems:          'center',
-        background:   hovered ? 'var(--bg-hover)'  : 'var(--bg-elevated)',
-        border:       `1px solid ${hovered ? 'var(--border-md)' : 'var(--border)'}`,
-        borderRadius: 12,
-        cursor:       'pointer',
-        transition:   'all 0.15s',
-      }}
+    onClick={onClick}
+    className="grid grid-cols-[32px_1fr_120px_90px_32px] gap-[14px] px-[18px] py-[12px] items-center rounded-[12px] border border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] cursor-pointer transition-all"
     >
-      {/* Logo */}
+
       <img
-        src={coin.image}
-        alt={coin.name}
-        style={{ width: 32, height: 32, borderRadius: '50%' }}
+      src={coin.image}
+      alt={coin.name}
+      className="w-[32px] h-[32px] rounded-full"
       />
 
-      {/* Name + symbol */}
       <div>
-        <div style={{ color: 'var(--text1)', fontWeight: 600, fontSize: 14 }}>
+
+        <div className="text-[14px] font-semibold text-[var(--text1)]">
           {coin.name}
         </div>
-        <div style={{
-          color: 'var(--text3)', fontSize: 11, marginTop: 2,
-          fontFamily: 'var(--ff-mono)', textTransform: 'uppercase',
-        }}>
+
+        <div className="text-[11px] text-[var(--text3)] font-[var(--ff-mono)] uppercase mt-[2px]">
           {coin.symbol}
         </div>
+
       </div>
 
-      {/* Price */}
-      <div style={{
-        color: 'var(--text1)', fontFamily: 'var(--ff-mono)',
-        fontWeight: 600, fontSize: 14, textAlign: 'right',
-      }}>
-        {fmtPrice(coin.current_price, currency)}
+
+      <div className="text-[14px] font-semibold text-[var(--text1)] text-right font-[var(--ff-mono)]">
+        {fmtPrice(coin.current_price,currency)}
       </div>
 
-      {/* 24h change */}
-      <div style={{
-        color:        isUp ? 'var(--green)' : 'var(--red)',
-        fontFamily:   'var(--ff-mono)', fontWeight: 600,
-        fontSize:     13, textAlign: 'right',
-        padding:      '3px 8px', borderRadius: 6,
-        background:   isUp ? 'rgba(34,197,94,0.10)' : 'rgba(244,63,94,0.10)',
-      }}>
+
+      <div
+      className="text-[13px] font-semibold text-right font-[var(--ff-mono)] px-[8px] py-[3px] rounded-[6px]"
+      style={{
+        color: isUp ? 'var(--green)' : 'var(--red)',
+        background: isUp
+          ? 'rgba(34,197,94,0.10)'
+          : 'rgba(244,63,94,0.10)'
+      }}
+      >
         {isUp ? '+' : ''}{change?.toFixed(2)}%
       </div>
 
-      {/* Remove button */}
+
       <button
-        onClick={(e) => { e.stopPropagation(); onRemove() }}
-        style={{
-          display:        'flex',
-          alignItems:     'center',
-          justifyContent: 'center',
-          width:          28,
-          height:         28,
-          borderRadius:   6,
-          border:         'none',
-          background:     'transparent',
-          cursor:         'pointer',
-          color:          'var(--gold)',
-        }}
+      onClick={(e)=>{e.stopPropagation(); onRemove()}}
+      className="flex items-center justify-center w-[28px] h-[28px]"
       >
-        <Star size={14} fill="var(--gold)" strokeWidth={2} />
+        <Star size={14} fill="var(--gold)" strokeWidth={2} className="text-[var(--gold)]"/>
       </button>
+
     </div>
+
   )
+
 }
 
-function WatchSkeletonRow() {
-  return (
-    <div style={{
-      display:             'grid',
-      gridTemplateColumns: '32px 1fr 120px 90px 32px',
-      gap:                 14,
-      padding:             '12px 18px',
-      alignItems:          'center',
-      background:          'var(--bg-elevated)',
-      border:              '1px solid var(--border)',
-      borderRadius:        12,
-    }}>
-      <Shimmer width={32} height={32} radius="50%" />
+
+
+function WatchSkeletonRow(){
+
+  return(
+
+    <div className="grid grid-cols-[32px_1fr_120px_90px_32px] gap-[14px] px-[18px] py-[12px] items-center rounded-[12px] border border-[var(--border)] bg-[var(--bg-elevated)]">
+
+      <Shimmer width={32} height={32} radius="50%"/>
+
       <div>
-        <Shimmer width={120} height={13} />
-        <Shimmer width={50}  height={10} style={{ marginTop: 5 }} />
+
+        <Shimmer width={120} height={13}/>
+        <Shimmer width={50} height={10} style={{marginTop:5}}/>
+
       </div>
-      <Shimmer width={80} height={13} style={{ marginLeft: 'auto' }} />
-      <Shimmer width={55} height={24} style={{ marginLeft: 'auto', borderRadius: 6 }} />
-      <Shimmer width={28} height={28} radius={6} />
+
+      <Shimmer width={80} height={13} style={{marginLeft:'auto'}}/>
+
+      <Shimmer width={55} height={24} style={{marginLeft:'auto',borderRadius:6}}/>
+
+      <Shimmer width={28} height={28} radius={6}/>
+
     </div>
+
   )
+
 }
 
-function Shimmer({ width, height, radius = 4, style = {} }) {
-  return (
-    <div style={{
-      width, height, borderRadius: radius, flexShrink: 0,
-      background:     'linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-elevated) 50%, var(--bg-hover) 75%)',
-      backgroundSize: '200% 100%',
-      animation:      'shimmer 1.4s infinite',
-      ...style,
-    }} />
+function Shimmer({ width,height,radius=4,style={} }){
+
+  return(
+
+    <div
+    style={{
+      width,
+      height,
+      borderRadius:radius,
+      background:'linear-gradient(90deg,var(--bg-hover)25%,var(--bg-elevated)50%,var(--bg-hover)75%)',
+      backgroundSize:'200% 100%',
+      animation:'shimmer 1.4s infinite',
+      ...style
+    }}
+    />
+
   )
+
 }

@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate }                  from 'react-router-dom'
-import { SlidersHorizontal, X }         from 'lucide-react'
+import { SlidersHorizontal, X, Star }   from 'lucide-react'
 import { fetchMarkets }                 from '../utils/marketAPI'
 import { useCurrency, CURRENCIES }      from '../context/CurrencyContext'
 import { usePageTitle }                 from '../hooks/usePageTitle'
 import { useWatchlist }                 from '../store/watchlistStore'
-import { Star }                         from 'lucide-react'
 
+// --- Formatting Helpers ---
 function fmtPrice(price, currency) {
   if (price == null) return '—'
   const sym = CURRENCIES.find(c => c.code === currency)?.symbol || '$'
@@ -33,20 +33,19 @@ const DEFAULT_FILTERS = {
   minChange24h: '', maxChange24h: '',
 }
 
-// Column definitions — key must match coin object field name
 const COLUMNS = [
-  { key: 'market_cap_rank',              label: '#',       width: '40px',  align: 'left',  sortable: true  },
-  { key: '__img',                        label: '',        width: '36px',  align: 'left',  sortable: false },
-  { key: 'name',                         label: 'Name',    width: '1fr',   align: 'left',  sortable: false },
-  { key: 'current_price',               label: 'Price',   width: '120px', align: 'right', sortable: true  },
-  { key: 'market_cap',                  label: 'Mkt Cap', width: '120px', align: 'right', sortable: true  },
-  { key: 'total_volume',                label: 'Volume',  width: '110px', align: 'right', sortable: true  },
-  { key: 'price_change_percentage_24h', label: '24h %',   width: '90px',  align: 'right', sortable: true  },
-  { key: 'price_change_percentage_7d_in_currency', label: '7d %', width: '90px', align: 'right', sortable: true },
-  { key: '__star',                       label: '',        width: '32px',  align: 'right', sortable: false },
+  { key: 'market_cap_rank',              label: '#',       width: 'w-[50px]',  align: 'text-left',   sortable: true  },
+  { key: '__img',                        label: '',        width: 'w-[40px]',  align: 'text-left',   sortable: false },
+  { key: 'name',                         label: 'Name',    width: 'flex-1',    align: 'text-left',   sortable: false },
+  { key: 'current_price',               label: 'Price',   width: 'w-[130px]', align: 'text-right',  sortable: true  },
+  { key: 'market_cap',                  label: 'Mkt Cap', width: 'w-[130px]', align: 'text-right',  sortable: true  },
+  { key: 'total_volume',                label: 'Volume',  width: 'w-[120px]', align: 'text-right',  sortable: true  },
+  { key: 'price_change_percentage_24h', label: '24h %',   width: 'w-[100px]',  align: 'text-right',  sortable: true  },
+  { key: 'price_change_percentage_7d_in_currency', label: '7d %', width: 'w-[100px]', align: 'text-right', sortable: true },
+  { key: '__star',                       label: '',        width: 'w-[40px]',  align: 'text-right',  sortable: false },
 ]
 
-const GRID = COLUMNS.map(c => c.width).join(' ')
+const GRID_COLS_CLASS = "grid grid-cols-[50px_40px_1fr_130px_130px_120px_100px_100px_40px] gap-2 items-center px-4"
 
 export default function ScreenerPage() {
   usePageTitle('Screener')
@@ -64,36 +63,40 @@ export default function ScreenerPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      const [p1, p2, p3] = await Promise.all([
-        fetchMarkets({ page: 1, perPage: 100, currency }),
-        fetchMarkets({ page: 2, perPage: 100, currency }),
-        fetchMarkets({ page: 3, perPage: 50,  currency }),
-      ])
-      setCoins([
-        ...(p1.data || []),
-        ...(p2.data || []),
-        ...(p3.data || []),
-      ])
-      setLoading(false)
+      try {
+        const [p1, p2, p3] = await Promise.all([
+          fetchMarkets({ page: 1, perPage: 100, currency }),
+          fetchMarkets({ page: 2, perPage: 100, currency }),
+          fetchMarkets({ page: 3, perPage: 50,  currency }),
+        ])
+        setCoins([...(p1.data || []), ...(p2.data || []), ...(p3.data || [])])
+      } catch (err) {
+        console.error("Fetch error:", err)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [currency])
 
+  // --- FIXED SORTING HANDLER ---
   const handleSort = (key) => {
-    if (!COLUMNS.find(c => c.key === key)?.sortable) return
     if (sortKey === key) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+      // Logic: Use functional update to ensure we always get the latest state toggle
+      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
       setSortKey(key)
-      // Rank sorts asc by default, everything else desc
+      // Default behavior: Rank sorts Ascending, everything else (Price/Vol) sorts Descending first
       setSortDir(key === 'market_cap_rank' ? 'asc' : 'desc')
     }
   }
 
   const filtered = useMemo(() => {
+    // 1. Shallow copy to ensure a new reference
     let result = [...coins]
     const f = filters
 
+    // 2. Apply Filters
     if (f.minPrice)     result = result.filter(c => (c.current_price ?? 0) >= +f.minPrice)
     if (f.maxPrice)     result = result.filter(c => (c.current_price ?? 0) <= +f.maxPrice)
     if (f.minMarketCap) result = result.filter(c => (c.market_cap    ?? 0) >= +f.minMarketCap * 1e9)
@@ -102,13 +105,20 @@ export default function ScreenerPage() {
     if (f.minChange24h) result = result.filter(c => (c.price_change_percentage_24h ?? 0) >= +f.minChange24h)
     if (f.maxChange24h) result = result.filter(c => (c.price_change_percentage_24h ?? 0) <= +f.maxChange24h)
 
+    // 3. FIXED SORTING COMPARISON
     result.sort((a, b) => {
       let aVal = a[sortKey]
       let bVal = b[sortKey]
-      // Treat null/undefined as worst value
-      if (aVal == null) aVal = sortDir === 'asc' ? Infinity : -Infinity
-      if (bVal == null) bVal = sortDir === 'asc' ? Infinity : -Infinity
-      return sortDir === 'asc' ? aVal - bVal : bVal - aVal
+
+      // Handle missing data so they don't break the sort order
+      if (aVal == null) return 1
+      if (bVal == null) return -1
+
+      if (sortDir === 'asc') {
+        return aVal > bVal ? 1 : -1
+      } else {
+        return aVal < bVal ? 1 : -1
+      }
     })
 
     return result
@@ -117,241 +127,145 @@ export default function ScreenerPage() {
   const hasFilters = Object.values(filters).some(v => v !== '')
 
   return (
-    <div style={{ animation: 'fadeUp 0.25s ease-out both' }}>
-
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', marginBottom: 20,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'rgba(61,142,248,0.12)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <SlidersHorizontal size={18} color="var(--blue)" />
+    <div className="animate-[fadeUp_0.25s_ease-out_both] pb-10">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-[var(--blue)]">
+            <SlidersHorizontal size={20} />
           </div>
           <div>
-            <h1 style={{ color: 'var(--text1)', fontSize: 22, fontWeight: 700,
-              fontFamily: 'var(--ff-display)' }}>
-              Screener
-            </h1>
-            <p style={{ color: 'var(--text3)', fontSize: 13, marginTop: 2 }}>
-              {loading ? 'Loading coins...' : `${filtered.length} / ${coins.length} coins match`}
+            <h1 className="text-[var(--text1)] text-2xl font-bold font-[var(--ff-display)]">Screener</h1>
+            <p className="text-[var(--text3)] text-sm">
+              {loading ? 'Fetching data...' : `${filtered.length} assets found`}
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="flex gap-2">
           {hasFilters && (
             <button
               onClick={() => setFilters(DEFAULT_FILTERS)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '7px 12px', borderRadius: 8,
-                border: '1px solid var(--red)',
-                background: 'rgba(244,63,94,0.08)',
-                color: 'var(--red)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/5 text-[var(--red)] text-xs font-bold hover:bg-red-500/10 transition-colors"
             >
-              <X size={12} /> Clear Filters
+              <X size={14} /> Clear
             </button>
           )}
           <button
-            onClick={() => setShowPanel(p => !p)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px', borderRadius: 8,
-              border: '1px solid var(--border-md)',
-              background: showPanel ? 'var(--bg-hover)' : 'transparent',
-              color: showPanel ? 'var(--blue)' : 'var(--text3)',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            }}
+            onClick={() => setShowPanel(!showPanel)}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg border border-[var(--border-md)] text-xs font-bold transition-all ${
+              showPanel ? 'bg-[var(--bg-hover)] text-[var(--blue)]' : 'text-[var(--text3)] hover:bg-[var(--bg-hover)]'
+            }`}
           >
-            <SlidersHorizontal size={12} />
-            Filters
+            <SlidersHorizontal size={14} /> Filters
           </button>
         </div>
       </div>
 
-      {/* Filter panel */}
       {showPanel && (
-        <div style={{
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, padding: '16px 20px', marginBottom: 16,
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12,
-        }}>
-          <FilterInput label="Min Price ($)"      value={filters.minPrice}     onChange={v => setFilters(f => ({ ...f, minPrice: v }))}     placeholder="e.g. 1" />
-          <FilterInput label="Max Price ($)"      value={filters.maxPrice}     onChange={v => setFilters(f => ({ ...f, maxPrice: v }))}     placeholder="e.g. 100000" />
-          <FilterInput label="Min Market Cap (B)" value={filters.minMarketCap} onChange={v => setFilters(f => ({ ...f, minMarketCap: v }))} placeholder="e.g. 1" />
-          <FilterInput label="Max Market Cap (B)" value={filters.maxMarketCap} onChange={v => setFilters(f => ({ ...f, maxMarketCap: v }))} placeholder="e.g. 1000" />
-          <FilterInput label="Min Volume (M)"     value={filters.minVolume}    onChange={v => setFilters(f => ({ ...f, minVolume: v }))}    placeholder="e.g. 100" />
-          <FilterInput label="Min 24h Change (%)" value={filters.minChange24h} onChange={v => setFilters(f => ({ ...f, minChange24h: v }))} placeholder="e.g. 5" />
-          <FilterInput label="Max 24h Change (%)" value={filters.maxChange24h} onChange={v => setFilters(f => ({ ...f, maxChange24h: v }))} placeholder="e.g. -5" />
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl p-5 mb-6 grid grid-cols-2 lg:grid-cols-4 gap-4 shadow-sm">
+          <FilterInput label="Min Price ($)"      value={filters.minPrice}     onChange={v => setFilters(f => ({ ...f, minPrice: v }))}     placeholder="0.01" />
+          <FilterInput label="Max Price ($)"      value={filters.maxPrice}     onChange={v => setFilters(f => ({ ...f, maxPrice: v }))}     placeholder="100000" />
+          <FilterInput label="Min Mkt Cap (B)"    value={filters.minMarketCap} onChange={v => setFilters(f => ({ ...f, minMarketCap: v }))} placeholder="1" />
+          <FilterInput label="Max Mkt Cap (B)"    value={filters.maxMarketCap} onChange={v => setFilters(f => ({ ...f, maxMarketCap: v }))} placeholder="1000" />
+          <FilterInput label="Min Vol (M)"        value={filters.minVolume}    onChange={v => setFilters(f => ({ ...f, minVolume: v }))}    placeholder="10" />
+          <FilterInput label="Min 24h %"          value={filters.minChange24h} onChange={v => setFilters(f => ({ ...f, minChange24h: v }))} placeholder="5" />
+          <FilterInput label="Max 24h %"          value={filters.maxChange24h} onChange={v => setFilters(f => ({ ...f, maxChange24h: v }))} placeholder="-5" />
         </div>
       )}
 
-      {/* Table */}
-      <div style={{
-        background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-        borderRadius: 14, overflow: 'hidden',
-      }}>
-
-        {/* Column headers — clickable to sort */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: GRID,
-          gap: 8, padding: '10px 16px',
-          borderBottom: '2px solid var(--border)',
-          background: 'var(--bg-base)',
-        }}>
-          {COLUMNS.map(col => {
-            const active = sortKey === col.key
-            if (!col.sortable) return (
-              <div key={col.key} />
-            )
-            return (
-              <div
-                key={col.key}
-                onClick={() => handleSort(col.key)}
-                style={{
-                  textAlign: col.align,
-                  color: active ? 'var(--blue)' : 'var(--text3)',
-                  fontSize: 11, fontWeight: 700,
-                  cursor: 'pointer', userSelect: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start',
-                  gap: 3,
-                  transition: 'color 0.15s',
-                }}
-              >
-                {col.label}
-                {active && (
-                  <span style={{ fontSize: 10 }}>
+      <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm overflow-x-auto">
+        <div className="min-w-[1000px]">
+          <div className={`${GRID_COLS_CLASS} py-3.5 border-b-2 border-[var(--border)] bg-[var(--bg-base)]`}>
+            {COLUMNS.map(col => {
+              const active = sortKey === col.key
+              if (!col.sortable) return <div key={col.key} className={col.width} />
+              return (
+                <button
+                  key={col.key}
+                  onClick={() => handleSort(col.key)}
+                  className={`${col.width} ${col.align} text-[11px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors group
+                    ${active ? 'text-[var(--blue)]' : 'text-[var(--text3)] hover:text-[var(--text1)]'}
+                    ${col.align === 'text-right' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {col.label}
+                  <span className={`text-[10px] transition-opacity ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'}`}>
                     {sortDir === 'asc' ? '↑' : '↓'}
                   </span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Rows */}
-        {loading
-          ? Array.from({ length: 20 }).map((_, i) => <SkeletonRow key={i} />)
-          : filtered.map((coin, i) => (
-            <ScreenerRow
-              key={coin.id}
-              coin={coin}
-              rank={i + 1}
-              currency={currency}
-              isWatched={has(coin.id)}
-              onWatch={e => { e.stopPropagation(); toggle(coin.id) }}
-              onClick={() => navigate(`/coin/${coin.id}`)}
-            />
-          ))
-        }
-
-        {!loading && filtered.length === 0 && (
-          <div style={{
-            padding: 48, textAlign: 'center',
-            color: 'var(--text3)', fontSize: 14,
-          }}>
-            No coins match your filters. Try relaxing the criteria.
+                </button>
+              )
+            })}
           </div>
-        )}
-      </div>
 
-      {!loading && filtered.length > 0 && (
-        <div style={{ color: 'var(--text4)', fontSize: 11, marginTop: 8, textAlign: 'center' }}>
-          Showing {filtered.length} coins · Click column headers to sort
+          <div className="divide-y divide-[var(--border)]">
+            {loading
+              ? Array.from({ length: 15 }).map((_, i) => <SkeletonRow key={i} />)
+              : filtered.map((coin, i) => (
+                <ScreenerRow
+                  key={coin.id}
+                  coin={coin}
+                  rank={coin.market_cap_rank}
+                  currency={currency}
+                  isWatched={has(coin.id)}
+                  onWatch={e => { e.stopPropagation(); toggle(coin.id) }}
+                  onClick={() => navigate(`/coin/${coin.id}`)}
+                />
+              ))
+            }
+          </div>
+
+          {!loading && filtered.length === 0 && (
+            <div className="py-24 text-center">
+              <div className="text-4xl mb-3">🔍</div>
+              <p className="text-[var(--text3)] font-medium">No assets match your current filters.</p>
+              <button onClick={() => setFilters(DEFAULT_FILTERS)} className="mt-4 text-[var(--blue)] text-sm font-bold hover:underline">Reset all filters</button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
 
 function ScreenerRow({ coin, rank, currency, isWatched, onWatch, onClick }) {
-  const [hovered, setHovered] = useState(false)
   const c24 = coin.price_change_percentage_24h
   const c7d  = coin.price_change_percentage_7d_in_currency
 
   return (
     <div
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'grid', gridTemplateColumns: GRID,
-        gap: 8, padding: '10px 16px', alignItems: 'center',
-        background: hovered ? 'var(--bg-hover)' : 'transparent',
-        borderBottom: '1px solid var(--border)',
-        cursor: 'pointer', transition: 'background 0.1s',
-      }}
+      className={`${GRID_COLS_CLASS} py-3 transition-all cursor-pointer hover:bg-[var(--bg-hover)] group border-l-4 border-transparent hover:border-[var(--blue)]`}
     >
-      <span style={{ color: 'var(--text4)', fontSize: 11,
-        fontFamily: 'var(--ff-mono)' }}>
-        {coin.market_cap_rank || rank}
+      <span className="text-[var(--text4)] text-[11px] font-mono font-bold">
+        {rank || '—'}
       </span>
-
-      <img src={coin.image} alt={coin.name}
-        style={{ width: 32, height: 32, borderRadius: '50%' }} />
-
-      <div>
-        <div style={{ color: 'var(--text1)', fontWeight: 600, fontSize: 13 }}>
-          {coin.name}
-        </div>
-        <div style={{ color: 'var(--text3)', fontSize: 10,
-          fontFamily: 'var(--ff-mono)', textTransform: 'uppercase', marginTop: 1 }}>
-          {coin.symbol}
-        </div>
+      <img src={coin.image} alt={coin.name} className="w-8 h-8 rounded-full shadow-sm" />
+      <div className="flex flex-col min-w-0">
+        <span className="text-[var(--text1)] font-bold text-sm truncate">{coin.name}</span>
+        <span className="text-[var(--text3)] text-[10px] font-mono uppercase font-bold">{coin.symbol}</span>
       </div>
-
-      <div style={{ color: 'var(--text1)', fontFamily: 'var(--ff-mono)',
-        fontSize: 13, fontWeight: 600, textAlign: 'right' }}>
+      <div className="text-[var(--text1)] font-mono text-[13px] font-bold text-right">
         {fmtPrice(coin.current_price, currency)}
       </div>
-
-      <div style={{ color: 'var(--text2)', fontFamily: 'var(--ff-mono)',
-        fontSize: 12, textAlign: 'right' }}>
+      <div className="text-[var(--text2)] font-mono text-xs text-right">
         {fmtLarge(coin.market_cap)}
       </div>
-
-      <div style={{ color: 'var(--text2)', fontFamily: 'var(--ff-mono)',
-        fontSize: 12, textAlign: 'right' }}>
+      <div className="text-[var(--text2)] font-mono text-xs text-right">
         {fmtLarge(coin.total_volume)}
       </div>
-
-      <div style={{
-        textAlign: 'right', fontFamily: 'var(--ff-mono)',
-        fontSize: 13, fontWeight: 600,
-        color: c24 == null ? 'var(--text3)' : c24 >= 0 ? 'var(--green)' : 'var(--red)',
-      }}>
+      <div className={`text-right font-mono text-[13px] font-bold ${c24 == null ? 'text-[var(--text3)]' : c24 >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
         {c24 != null ? `${c24 >= 0 ? '+' : ''}${c24.toFixed(2)}%` : '—'}
       </div>
-
-      <div style={{
-        textAlign: 'right', fontFamily: 'var(--ff-mono)',
-        fontSize: 13, fontWeight: 600,
-        color: c7d == null ? 'var(--text3)' : c7d >= 0 ? 'var(--green)' : 'var(--red)',
-      }}>
+      <div className={`text-right font-mono text-[13px] font-bold ${c7d == null ? 'text-[var(--text3)]' : c7d >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
         {c7d != null ? `${c7d >= 0 ? '+' : ''}${c7d.toFixed(2)}%` : '—'}
       </div>
-
       <button
         onClick={onWatch}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          width: 26, height: 26, borderRadius: 6,
-          border: 'none', background: 'transparent', cursor: 'pointer',
-          marginLeft: 'auto',
-        }}
+        className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-amber-500/10 transition-colors ml-auto group/star"
       >
-        <Star size={13}
+        <Star size={15}
           fill={isWatched ? 'var(--gold)' : 'none'}
-          color={isWatched ? 'var(--gold)' : 'var(--text4)'}
-          strokeWidth={2}
+          className={`${isWatched ? 'text-[var(--gold)]' : 'text-[var(--text4)] group-hover/star:text-[var(--text2)]'} transition-colors`}
+          strokeWidth={2.5}
         />
       </button>
     </div>
@@ -360,9 +274,8 @@ function ScreenerRow({ coin, rank, currency, isWatched, onWatch, onClick }) {
 
 function FilterInput({ label, value, onChange, placeholder }) {
   return (
-    <div>
-      <label style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600,
-        display: 'block', marginBottom: 5 }}>
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[var(--text3)] text-[10px] font-black uppercase tracking-widest ml-1">
         {label}
       </label>
       <input
@@ -370,12 +283,7 @@ function FilterInput({ label, value, onChange, placeholder }) {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        style={{
-          width: '100%', padding: '8px 10px',
-          background: 'var(--bg-base)', border: '1px solid var(--border-md)',
-          borderRadius: 7, color: 'var(--text1)', fontSize: 13,
-          outline: 'none', boxSizing: 'border-box',
-        }}
+        className="w-full px-3 py-2.5 bg-[var(--bg-base)] border border-[var(--border-md)] rounded-xl text-[var(--text1)] text-[13px] font-mono outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[var(--blue)] transition-all"
       />
     </div>
   )
@@ -383,21 +291,19 @@ function FilterInput({ label, value, onChange, placeholder }) {
 
 function SkeletonRow() {
   return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: GRID,
-      gap: 8, padding: '10px 16px', alignItems: 'center',
-      borderBottom: '1px solid var(--border)',
-    }}>
-      {[16, 32, 120, 80, 80, 70, 60, 60, 20].map((w, i) => (
-        <div key={i} style={{
-          width: w, height: i === 1 ? 32 : 13,
-          borderRadius: i === 1 ? '50%' : 4,
-          background: 'linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-elevated) 50%, var(--bg-hover) 75%)',
-          backgroundSize: '200% 100%',
-          animation: 'shimmer 1.4s infinite',
-          marginLeft: i >= 3 ? 'auto' : 0,
-        }} />
-      ))}
+    <div className={`${GRID_COLS_CLASS} py-4 animate-pulse opacity-50`}>
+      <div className="w-4 h-3 bg-[var(--bg-hover)] rounded" />
+      <div className="w-8 h-8 bg-[var(--bg-hover)] rounded-full" />
+      <div className="space-y-2">
+        <div className="w-24 h-3 bg-[var(--bg-hover)] rounded" />
+        <div className="w-12 h-2 bg-[var(--bg-hover)] rounded" />
+      </div>
+      <div className="w-20 h-3 bg-[var(--bg-hover)] rounded ml-auto" />
+      <div className="w-20 h-3 bg-[var(--bg-hover)] rounded ml-auto" />
+      <div className="w-20 h-3 bg-[var(--bg-hover)] rounded ml-auto" />
+      <div className="w-14 h-3 bg-[var(--bg-hover)] rounded ml-auto" />
+      <div className="w-14 h-3 bg-[var(--bg-hover)] rounded ml-auto" />
+      <div className="w-6 h-6 bg-[var(--bg-hover)] rounded-full ml-auto" />
     </div>
   )
 }

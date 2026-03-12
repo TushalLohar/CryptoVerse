@@ -1,19 +1,20 @@
-// Every color is now a CSS variable reference
-// When data-theme changes on <html>, these all update automatically
-// Zero React re-renders needed
 export const C = {
-  bgBase:     'var(--bg-base)',
-  bgElevated: 'var(--bg-elevated)',
-  bgHover:    'var(--bg-hover)',
-  text1:      'var(--text1)',
-  text2:      'var(--text2)',
-  text3:      'var(--text3)',
-  text4:      'var(--text4)',
-  border:     'var(--border)',
-  borderMd:   'var(--border-md)',
-  blue:       'var(--blue)',
-  green:      'var(--green)',
-  red:        'var(--red)',
-  gold:       'var(--gold)',
-  shadowLg:   'var(--shadow-lg)',
-}
+  bgBase: "var(--bg-base)",        // main page background
+  bgElevated: "var(--bg-elevated)",// cards / panels background
+  bgHover: "var(--bg-hover)",      // hover background
+
+  text1: "var(--text1)",           // primary text
+  text2: "var(--text2)",           // secondary text
+  text3: "var(--text3)",           // muted text
+  text4: "var(--text4)",           // faint text
+
+  border: "var(--border)",         // normal border
+  borderMd: "var(--border-md)",    // stronger border
+
+  blue: "var(--blue)",             // primary accent
+  green: "var(--green)",           // positive / gain
+  red: "var(--red)",               // negative / loss
+  gold: "var(--gold)",             // highlight
+
+  shadowLg: "var(--shadow-lg)",    // large card shadow
+};

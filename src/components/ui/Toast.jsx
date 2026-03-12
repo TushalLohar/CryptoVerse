@@ -1,79 +1,68 @@
-import { createContext, useContext, useState, useCallback } from 'react'
-import { X, CheckCircle, AlertTriangle, Info, Bell } from 'lucide-react'
+import { createContext, useContext, useState } from "react";
+import { X, CheckCircle, AlertTriangle, Info, Bell } from "lucide-react";
 
-// The context holds just one thing: the show() function
-const ToastContext = createContext(null)
+const ToastContext = createContext(null);
 
-// Auto-incrementing ID for each toast
-let toastId = 0
+let toastId = 0;
 
 export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([])
+  const [toasts, setToasts] = useState([]);
 
-  // useCallback so this function reference stays stable
-  // without it, every render creates a new function = unnecessary re-renders
-  const show = useCallback((message, type = 'info', duration = 4000) => {
-    const id = ++toastId
-    // Add new toast to the list
-    setToasts((prev) => [...prev, { id, message, type }])
-    // Auto-remove after duration
+  function show(message, type = "info", duration = 4000) {
+    const id = ++toastId;
+
+    setToasts((prev) => [...prev, { id, message, type }]);
+
     setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id))
-    }, duration)
-    return id
-  }, [])
-
-  const dismiss = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }, [])
-
-  // Icon and color for each toast type
-  const config = {
-    success: { icon: CheckCircle, color: 'var(--green)' },
-    error:   { icon: AlertTriangle, color: 'var(--red)' },
-    info:    { icon: Info,          color: 'var(--blue)' },
-    alert:   { icon: Bell,          color: 'var(--gold)' },
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, duration);
   }
+
+  function dismiss(id) {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  const config = {
+    success: { icon: CheckCircle, color: "text-crypto-green" },
+    error: { icon: AlertTriangle, color: "text-crypto-red" },
+    info: { icon: Info, color: "text-crypto-blue" },
+    alert: { icon: Bell, color: "text-crypto-gold" },
+  };
 
   return (
     <ToastContext.Provider value={show}>
       {children}
 
-      {/* Toast container — fixed bottom right */}
-      <div className="fixed bottom-24 right-4 z-[9999] flex flex-col gap-2">
+      {/* Toast Container */}
+      <div className="fixed bottom-24 right-4 z-9999 flex flex-col gap-2">
         {toasts.map((toast) => {
-          const { icon: Icon, color } = config[toast.type] || config.info
+          const { icon: Icon, color } = config[toast.type] || config.info;
+
           return (
             <div
               key={toast.id}
-              className="flex items-start gap-3 px-4 py-3 rounded-xl min-w-[280px] max-w-[380px]"
-              style={{
-                background:  'var(--bg-elevated)',
-                border:      '1px solid var(--border-md)',
-                boxShadow:   'var(--shadow-lg)',
-                animation:   'slideIn 0.2s ease-out both',
-              }}
+              className="flex items-start gap-3 px-4 py-3 rounded-xl min-w-70 max-w-95 bg-bg-elevated border border-border-md shadow-premium animate-scale-in"
             >
-              <Icon size={16} style={{ color, flexShrink: 0, marginTop: 1 }} />
-              <div className="flex-1 text-[13px]" style={{ color: 'var(--text-1)' }}>
+              <Icon size={16} className={`${color} mt-0.5`} />
+
+              <div className="flex-1 text-[13px] text-text-1">
                 {toast.message}
               </div>
+
               <button
                 onClick={() => dismiss(toast.id)}
-                className="flex-shrink-0"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}
+                className="text-text-3 hover:text-text-1"
               >
                 <X size={13} />
               </button>
             </div>
-          )
+          );
         })}
       </div>
     </ToastContext.Provider>
-  )
+  );
 }
-
-// This is what components call: const toast = useToast()
-// Then: toast('Message!', 'success')
 // eslint-disable-next-line react-refresh/only-export-components
-export const useToast = () => useContext(ToastContext)
+export function useToast() {
+  return useContext(ToastContext);
+}

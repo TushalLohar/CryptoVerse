@@ -1,34 +1,32 @@
-import { create } from 'zustand'
+import { create } from "zustand";
 
-const KEY = 'ct_watchlist'
+const KEY = "ct_watchlist";
 
-// Load saved watchlist from localStorage on startup
 const load = () => {
   try {
-    return JSON.parse(localStorage.getItem(KEY)) || []
+    return JSON.parse(localStorage.getItem(KEY)) || [];
   } catch {
-    return []
+    return [];
   }
-}
+};
 
-// create() takes a function that receives set and get
-// set = update the store state
-// get = read the current store state
+const save = (ids) => {
+  localStorage.setItem(KEY, JSON.stringify(ids));
+};
+
 export const useWatchlist = create((set, get) => ({
-  ids: load(),  // ['bitcoin', 'ethereum', ...]
+  ids: load(),
 
-  // Toggle a coin — if already in list remove it, else add it
   toggle: (id) => {
-    const current = get().ids
-    const updated = current.includes(id)
-      ? current.filter(x => x !== id)  // remove
-      : [...current, id]               // add
+    const current = get().ids;
 
-    localStorage.setItem(KEY, JSON.stringify(updated))
-    set({ ids: updated })
+    const updated = current.includes(id)
+      ? current.filter((x) => x !== id)
+      : [...current, id];
+
+    save(updated);
+    set({ ids: updated });
   },
 
-  // Check if a coin is in the watchlist
-  // Used by the star button to know if it should be filled or empty
   has: (id) => get().ids.includes(id),
-}))
+}));

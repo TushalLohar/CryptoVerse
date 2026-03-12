@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
-import { GitCompare }          from 'lucide-react'
+import { GitCompare } from 'lucide-react'
 import { fetchSearch, fetchCoinDetail } from '../utils/marketAPI'
-import { useCurrency, CURRENCIES }      from '../context/CurrencyContext'
-import { usePageTitle }                 from '../hooks/usePageTitle'
+import { useCurrency, CURRENCIES } from '../context/CurrencyContext'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 function fmtPrice(price, currency) {
   if (price == null) return '—'
   if (currency === 'btc') return `₿${price.toFixed(price < 0.001 ? 8 : 4)}`
-  if (currency === 'eth') return `Ξ${price.toFixed(price < 0.01  ? 6 : 4)}`
+  if (currency === 'eth') return `Ξ${price.toFixed(price < 0.01 ? 6 : 4)}`
   const sym = CURRENCIES.find(c => c.code === currency)?.symbol || '$'
   return `${sym}${price.toLocaleString(undefined, {
     minimumFractionDigits: price < 1 ? 4 : 2,
@@ -57,17 +57,13 @@ export default function ComparePage() {
   usePageTitle('Compare')
   const { currency } = useCurrency()
 
-  // selectedA/B = search result (has id, name, symbol, thumb)
   const [selectedA, setSelectedA] = useState(null)
   const [selectedB, setSelectedB] = useState(null)
-
-  // fullA/B = full coin detail from CoinGecko (has market_data)
   const [fullA, setFullA] = useState(null)
   const [fullB, setFullB] = useState(null)
   const [loadingA, setLoadingA] = useState(false)
   const [loadingB, setLoadingB] = useState(false)
 
-  // Fetch full detail whenever a coin is selected
   useEffect(() => {
     if (!selectedA) { setFullA(null); return }
     setLoadingA(true)
@@ -88,36 +84,26 @@ export default function ComparePage() {
 
   const metricsA = extractMetrics(fullA, currency)
   const metricsB = extractMetrics(fullB, currency)
-
   const bothSelected  = selectedA && selectedB
   const bothLoaded    = fullA && fullB
   const anyLoading    = loadingA || loadingB
 
   return (
-    <div style={{ animation: 'fadeUp 0.25s ease-out both' }}>
+    <div className="animate-[fadeUp_0.25s_ease-out_both]">
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: 10,
-          background: 'rgba(61,142,248,0.12)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <GitCompare size={18} color="var(--blue)" />
+      <div className="flex items-center gap-[10px] mb-7">
+        <div className="w-9 h-9 rounded-[10px] bg-[rgba(61,142,248,0.12)] flex items-center justify-center">
+          <GitCompare size={18} className="text-blue" />
         </div>
         <div>
-          <h1 style={{ color: 'var(--text1)', fontSize: 22, fontWeight: 700,
-            fontFamily: 'var(--ff-display)' }}>
-            Compare Coins
-          </h1>
-          <p style={{ color: 'var(--text3)', fontSize: 13, marginTop: 2 }}>
-            Side by side comparison of any two cryptocurrencies
-          </p>
+          <h1 className="text-text-1 text-[22px] font-bold font-display">Compare Coins</h1>
+          <p className="text-text-3 text-[13px] mt-0.5">Side by side comparison of any two cryptocurrencies</p>
         </div>
       </div>
 
       {/* Two coin selectors */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <CoinSelector
           label="COIN A"
           selected={selectedA}
@@ -136,34 +122,19 @@ export default function ComparePage() {
 
       {/* Loading state */}
       {bothSelected && anyLoading && (
-        <div style={{
-          padding: 32, textAlign: 'center',
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, color: 'var(--text3)', fontSize: 14,
-        }}>
+        <div className="p-8 text-center bg-bg-elevated border border-border rounded-[14px] text-text-3 text-sm">
           Loading coin data...
         </div>
       )}
 
       {/* Comparison table */}
       {bothSelected && bothLoaded && !anyLoading && (
-        <div style={{
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, overflow: 'hidden',
-        }}>
+        <div className="bg-bg-elevated border border-border rounded-[14px] overflow-hidden shadow-sm">
 
           {/* Table header */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 160px 1fr',
-            background: 'var(--bg-hover)', borderBottom: '1px solid var(--border)',
-          }}>
+          <div className="grid grid-cols-[1fr_160px_1fr] bg-bg-hover border-b border-border">
             <CoinHeader coin={selectedA} coinData={fullA} color="var(--blue)" align="left" />
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--text3)', fontSize: 13, fontWeight: 800,
-              padding: '14px', letterSpacing: '0.1em',
-              borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
-            }}>
+            <div className="flex items-center justify-center text-text-3 text-[13px] font-extrabold p-3.5 tracking-[0.1em] border-l border-r border-border">
               VS
             </div>
             <CoinHeader coin={selectedB} coinData={fullB} color="var(--purple)" align="right" />
@@ -174,11 +145,9 @@ export default function ComparePage() {
             const valA = metricsA[key]
             const valB = metricsB[key]
 
-            // Determine winner
             let aWins = false, bWins = false
             if (!color && typeof valA === 'number' && typeof valB === 'number' && valA !== valB) {
               if (higher === false) {
-                // Lower rank number = better
                 aWins = valA < valB
                 bWins = valB < valA
               } else if (higher) {
@@ -188,47 +157,24 @@ export default function ComparePage() {
             }
 
             return (
-              <div key={key} style={{
-                display: 'grid', gridTemplateColumns: '1fr 160px 1fr',
-                borderBottom: '1px solid var(--border)',
-              }}>
+              <div key={key} className="grid grid-cols-[1fr_160px_1fr] border-b border-border last:border-0">
                 {/* Coin A value */}
-                <div style={{
-                  padding: '14px 24px', textAlign: 'right',
-                  fontFamily: 'var(--ff-mono)', fontSize: 14, fontWeight: 700,
-                  color: color && valA != null
-                    ? valA >= 0 ? 'var(--green)' : 'var(--red)'
-                    : aWins ? 'var(--green)' : 'var(--text1)',
-                  background: aWins ? 'rgba(34,197,94,0.04)' : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6,
-                }}>
-                  {aWins && <span style={{ fontSize: 10 }}>👑</span>}
+                <div className={`p-[14px_24px] text-right font-mono text-sm font-bold flex items-center justify-end gap-1.5 transition-colors
+                  ${color && valA != null ? (valA >= 0 ? 'text-green-500' : 'text-red-500') : (aWins ? 'text-green-500 bg-green-500/[0.04]' : 'text-text-1')}`}>
+                  {aWins && <span className="text-[10px]">👑</span>}
                   {fmt(valA, currency)}
                 </div>
 
                 {/* Label */}
-                <div style={{
-                  padding: '14px 8px', textAlign: 'center',
-                  color: 'var(--text3)', fontSize: 12, fontWeight: 500,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
-                  background: 'var(--bg-base)',
-                }}>
+                <div className="p-[14px_8px] text-center text-text-3 text-[12px] font-medium flex items-center justify-center border-l border-r border-border bg-bg-base">
                   {label}
                 </div>
 
                 {/* Coin B value */}
-                <div style={{
-                  padding: '14px 24px', textAlign: 'left',
-                  fontFamily: 'var(--ff-mono)', fontSize: 14, fontWeight: 700,
-                  color: color && valB != null
-                    ? valB >= 0 ? 'var(--green)' : 'var(--red)'
-                    : bWins ? 'var(--green)' : 'var(--text1)',
-                  background: bWins ? 'rgba(34,197,94,0.04)' : 'transparent',
-                  display: 'flex', alignItems: 'center', gap: 6,
-                }}>
+                <div className={`p-[14px_24px] text-left font-mono text-sm font-bold flex items-center gap-1.5 transition-colors
+                  ${color && valB != null ? (valB >= 0 ? 'text-green-500' : 'text-red-500') : (bWins ? 'text-green-500 bg-green-500/[0.04]' : 'text-text-1')}`}>
                   {fmt(valB, currency)}
-                  {bWins && <span style={{ fontSize: 10 }}>👑</span>}
+                  {bWins && <span className="text-[10px]">👑</span>}
                 </div>
               </div>
             )
@@ -246,15 +192,9 @@ export default function ComparePage() {
             })
             const winner = aScore > bScore ? selectedA : aScore < bScore ? selectedB : null
             return (
-              <div style={{
-                padding: '14px 24px', textAlign: 'center',
-                background: 'var(--bg-base)',
-                color: 'var(--text2)', fontSize: 13, fontWeight: 600,
-              }}>
+              <div className="p-[14px_24px] text-center bg-bg-base text-text-2 text-[13px] font-semibold border-t border-border">
                 {winner
-                  ? <>🏆 <span style={{ color: aScore > bScore ? 'var(--blue)' : 'var(--purple)', fontWeight: 800 }}>
-                      {winner.name}
-                    </span> wins {Math.max(aScore,bScore)}-{Math.min(aScore,bScore)} on fundamental metrics</>
+                  ? <>🏆 <span className={`font-extrabold ${aScore > bScore ? 'text-blue' : 'text-purple'}`}>{winner.name}</span> wins {Math.max(aScore,bScore)}-{Math.min(aScore,bScore)} on fundamental metrics</>
                   : '🤝 Even match across fundamental metrics'
                 }
               </div>
@@ -265,11 +205,7 @@ export default function ComparePage() {
 
       {/* Prompt */}
       {(!selectedA || !selectedB) && (
-        <div style={{
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 14, padding: 48, textAlign: 'center',
-          color: 'var(--text3)', fontSize: 14,
-        }}>
+        <div className="bg-bg-elevated border border-border rounded-[14px] p-12 text-center text-text-3 text-sm">
           Select two coins above to compare them
         </div>
       )}
@@ -277,11 +213,10 @@ export default function ComparePage() {
   )
 }
 
-// ── Coin selector with search ──
 function CoinSelector({ label, selected, onSelect, accentColor, loading }) {
-  const [query,   setQuery]   = useState('')
+  const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
-  const [open,    setOpen]    = useState(false)
+  const [open, setOpen] = useState(false)
 
   useEffect(() => {
     if (query.length < 2) { setResults([]); return }
@@ -300,67 +235,41 @@ function CoinSelector({ label, selected, onSelect, accentColor, loading }) {
   }
 
   return (
-    <div style={{
-      background: 'var(--bg-elevated)',
-      border: `1px solid ${open ? accentColor : 'var(--border)'}`,
-      borderRadius: 14, padding: 16, transition: 'border-color 0.15s',
-    }}>
-      <div style={{
-        color: 'var(--text3)', fontSize: 11, fontWeight: 700,
-        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10,
-      }}>
+    <div 
+      className="bg-bg-elevated border rounded-[14px] p-4 transition-all duration-150"
+      style={{ borderColor: open ? accentColor : 'var(--border)' }}
+    >
+      <div className="text-text-3 text-[11px] font-bold uppercase tracking-[0.08em] mb-2.5 ml-1">
         {label}
       </div>
 
       {selected && !open ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src={selected.thumb} alt={selected.name}
-            style={{ width: 36, height: 36, borderRadius: '50%' }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ color: 'var(--text1)', fontWeight: 700, fontSize: 15 }}>
-              {selected.name}
-            </div>
-            <div style={{ color: 'var(--text3)', fontSize: 11,
-              fontFamily: 'var(--ff-mono)', textTransform: 'uppercase' }}>
-              {selected.symbol}
-            </div>
+        <div className="flex items-center gap-[10px]">
+          <img src={selected.thumb} alt={selected.name} className="w-9 h-9 rounded-full" />
+          <div className="flex-1">
+            <div className="text-text-1 font-bold text-[15px] leading-tight">{selected.name}</div>
+            <div className="text-text-3 text-[11px] font-mono uppercase tracking-tight">{selected.symbol}</div>
           </div>
-          {loading && (
-            <span style={{ color: 'var(--text4)', fontSize: 11 }}>Loading...</span>
-          )}
+          {loading && <span className="text-text-4 text-[11px] animate-pulse">Loading...</span>}
           <button
             onClick={() => { onSelect(null); setQuery(''); setOpen(true) }}
-            style={{
-              background: 'var(--bg-hover)', border: '1px solid var(--border)',
-              borderRadius: 6, color: 'var(--text3)', cursor: 'pointer',
-              fontSize: 11, fontWeight: 600, padding: '4px 10px',
-            }}
+            className="bg-bg-hover border border-border rounded-md text-text-3 text-[11px] font-semibold px-2.5 py-1 hover:border-blue transition-colors"
           >
             Change
           </button>
         </div>
       ) : (
-        <div style={{ position: 'relative' }}>
+        <div className="relative">
           <input
             autoFocus={open}
             value={query}
             onChange={e => { setQuery(e.target.value); setOpen(true) }}
             onFocus={() => setOpen(true)}
             placeholder="Search coin..."
-            style={{
-              width: '100%', padding: '9px 12px',
-              background: 'var(--bg-base)', border: '1px solid var(--border-md)',
-              borderRadius: 8, color: 'var(--text1)',
-              fontSize: 13, outline: 'none', boxSizing: 'border-box',
-            }}
+            className="w-full p-[9px_12px] bg-bg-base border border-border-md rounded-lg text-text-1 text-[13px] outline-none placeholder:text-text-4 focus:border-blue transition-colors"
           />
           {results.length > 0 && (
-            <div style={{
-              position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-              background: 'var(--bg-elevated)', border: '1px solid var(--border-md)',
-              borderRadius: 10, overflow: 'hidden', zIndex: 50,
-              boxShadow: 'var(--shadow-lg)',
-            }}>
+            <div className="absolute top-[calc(100%+4px)] left-0 right-0 bg-bg-elevated border border-border-md rounded-[10px] overflow-hidden z-50 shadow-lg">
               {results.map(coin => (
                 <SearchRow key={coin.id} coin={coin} onSelect={() => handleSelect(coin)} />
               ))}
@@ -373,21 +282,12 @@ function CoinSelector({ label, selected, onSelect, accentColor, loading }) {
 }
 
 function CoinHeader({ coin, coinData, color, align }) {
-  const price = coinData?.market_data?.current_price?.usd
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      padding: '14px 24px',
-      flexDirection: align === 'right' ? 'row-reverse' : 'row',
-    }}>
-      <img src={coin.thumb} alt={coin.name}
-        style={{ width: 36, height: 36, borderRadius: '50%' }} />
+    <div className={`flex items-center gap-[10px] p-[14px_24px] ${align === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
+      <img src={coin.thumb} alt={coin.name} className="w-9 h-9 rounded-full" />
       <div style={{ textAlign: align }}>
-        <div style={{ color: 'var(--text1)', fontWeight: 700, fontSize: 15 }}>
-          {coin.name}
-        </div>
-        <div style={{ color, fontSize: 11,
-          fontFamily: 'var(--ff-mono)', textTransform: 'uppercase' }}>
+        <div className="text-text-1 font-bold text-[15px] leading-tight">{coin.name}</div>
+        <div style={{ color }} className="text-[11px] font-mono uppercase font-bold tracking-tight">
           {coin.symbol?.toUpperCase()}
         </div>
       </div>
@@ -396,33 +296,18 @@ function CoinHeader({ coin, coinData, color, align }) {
 }
 
 function SearchRow({ coin, onSelect }) {
-  const [hovered, setHovered] = useState(false)
   return (
     <div
       onClick={onSelect}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px',
-        background: hovered ? 'var(--bg-hover)' : 'transparent',
-        cursor: 'pointer', transition: 'background 0.1s',
-      }}
+      className="flex items-center gap-[10px] p-[9px_14px] hover:bg-bg-hover cursor-pointer transition-colors group"
     >
-      <img src={coin.thumb} alt={coin.name}
-        style={{ width: 24, height: 24, borderRadius: '50%' }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ color: 'var(--text1)', fontSize: 13, fontWeight: 600 }}>
-          {coin.name}
-        </div>
-        <div style={{ color: 'var(--text3)', fontSize: 10,
-          fontFamily: 'var(--ff-mono)', textTransform: 'uppercase' }}>
-          {coin.symbol}
-        </div>
+      <img src={coin.thumb} alt={coin.name} className="w-6 h-6 rounded-full" />
+      <div className="flex-1">
+        <div className="text-text-1 text-[13px] font-semibold group-hover:text-blue">{coin.name}</div>
+        <div className="text-text-3 text-[10px] font-mono uppercase">{coin.symbol}</div>
       </div>
       {coin.market_cap_rank && (
-        <span style={{ color: 'var(--text4)', fontSize: 11, fontFamily: 'var(--ff-mono)' }}>
-          #{coin.market_cap_rank}
-        </span>
+        <span className="text-text-4 text-[11px] font-mono">#{coin.market_cap_rank}</span>
       )}
     </div>
   )

@@ -2,44 +2,28 @@ import { useNavigate } from 'react-router-dom'
 
 export default function NotFoundPage() {
   const navigate = useNavigate()
+  
   return (
-    <div style={{
-      display:        'flex',
-      flexDirection:  'column',
-      alignItems:     'center',
-      justifyContent: 'center',
-      minHeight:      '60vh',
-      gap:            16,
-      animation:      'fadeUp 0.25s ease-out both',
-    }}>
-      <div style={{
-        fontSize:   72,
-        fontWeight: 800,
-        fontFamily: 'var(--ff-display)',
-        color:      'var(--text4)',
-        lineHeight: 1,
-      }}>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 animate-[fadeUp_0.25s_ease-out_both]">
+      {/* Large Error Code */}
+      <div className="text-[72px] font-extrabold font-[var(--ff-display)] text-[var(--text4)] leading-none">
         404
       </div>
-      <p style={{ color: 'var(--text2)', fontSize: 16, fontWeight: 600 }}>
+      
+      {/* Status Message */}
+      <p className="text-[var(--text2)] text-base font-semibold">
         Page not found
       </p>
-      <p style={{ color: 'var(--text3)', fontSize: 13 }}>
+      
+      {/* Subtext */}
+      <p className="text-[var(--text3)] text-[13px]">
         The page you're looking for doesn't exist.
       </p>
+      
+      {/* CTA Button */}
       <button
         onClick={() => navigate('/')}
-        style={{
-          marginTop:    8,
-          padding:      '9px 22px',
-          borderRadius: 8,
-          border:       'none',
-          background:   'var(--blue)',
-          color:        '#fff',
-          fontSize:     13,
-          fontWeight:   600,
-          cursor:       'pointer',
-        }}
+        className="mt-2 px-[22px] py-[9px] rounded-lg border-none bg-[var(--blue)] text-white text-[13px] font-semibold cursor-pointer transition-opacity hover:opacity-90 active:scale-95"
       >
         Back to Markets
       </button>

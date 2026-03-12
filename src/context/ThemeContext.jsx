@@ -1,26 +1,35 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect } from "react";
 
-const ThemeContext = createContext()
+const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(
-    () => localStorage.getItem('ct-theme') || 'dark'
-  )
-
+    localStorage.getItem("ct-theme") || "dark",
+  );
   useEffect(() => {
-    // This one line updates every CSS variable instantly
-    // No component re-renders needed
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('ct-theme', theme)
-  }, [theme])
+    // Update CSS variables
+    document.documentElement.setAttribute("data-theme", theme);
 
-  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
+    // Save theme in localStorage
+    localStorage.setItem("ct-theme", theme);
+  }, [theme]);
 
+  function toggleTheme() {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
-  )
+  );
 }
 // eslint-disable-next-line react-refresh/only-export-components
-export const useTheme = () => useContext(ThemeContext)
+export function useTheme() {
+  const ctx = useContext(ThemeContext);
+
+  if (!ctx) {
+    throw new Error("useTheme must be used inside ThemeProvider");
+  }
+
+  return ctx;
+}

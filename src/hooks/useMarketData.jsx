@@ -1,38 +1,36 @@
-import { useState, useEffect } from 'react'
-import { fetchMarkets } from '../utils/marketAPI'
+import { useState, useEffect } from "react"
+import { fetchMarkets } from "../utils/marketAPI"
 
+export function useMarketData({ page = 1, perPage = 25, currency = "usd" } = {}) {
 
-export function useMarketData({ page = 1, perPage = 25, currency = 'usd' } = {}) {
-
-  const [coins,   setCoins]   = useState([])
+  const [coins, setCoins] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(null)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
 
     const controller = new AbortController()
 
-    const load = async () => {
+    async function load() {
+
       setLoading(true)
       setError(null)
 
-      const { data, error: err } = await fetchMarkets({
+      const { data, error } = await fetchMarkets({
         page,
         perPage,
         currency,
-        signal: controller.signal,  // pass to fetch so it can be cancelled
+        signal: controller.signal,
+        fresh: true
       })
 
-      // If request was cancelled (component unmounted), do nothing
       if (controller.signal.aborted) return
 
-      if (err) {
-        setError(err)
-      } else {
-        setCoins(data || [])
-      }
+      if (error) setError(error)
+      else setCoins(data || [])
 
       setLoading(false)
+
     }
 
     load()
@@ -42,4 +40,5 @@ export function useMarketData({ page = 1, perPage = 25, currency = 'usd' } = {})
   }, [page, perPage, currency])
 
   return { coins, loading, error }
+
 }
