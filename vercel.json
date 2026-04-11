@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/coingecko/:path*",
+      "destination": "/api/coingecko-proxy?cgPath=:path*"
+    },
+    {
+      "source": "/api/gemini/:path*",
+      "destination": "/api/gemini-proxy?gemPath=:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

@@ -8,12 +8,10 @@ const MODELS = [
 ]
 
 export const askGemini = async (messages, systemPrompt) => {
-  const key = import.meta.env.VITE_GEMINI_API_KEY
-
   for (const model of MODELS) {
     try {
       const response = await fetch(
-        `/api/gemini/v1beta/models/${model}:generateContent?key=${key}`,
+        `/api/gemini/v1beta/models/${model}:generateContent`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
