@@ -1,4 +1,4 @@
-// List of models to try in order — if one fails, moves to next
+
 const MODELS = [
   'gemini-3-flash-preview',
   'gemini-2.5-flash',
@@ -7,7 +7,7 @@ const MODELS = [
   'gemini-2.5-flash-lite',
 ]
 
-export const askClaude = async (messages, systemPrompt) => {
+export const askGemini = async (messages, systemPrompt) => {
   const key = import.meta.env.VITE_GEMINI_API_KEY
 
   for (const model of MODELS) {

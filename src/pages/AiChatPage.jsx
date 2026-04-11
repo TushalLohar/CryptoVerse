@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Sparkles, Send, Trash2, Bot, User } from "lucide-react"
 
-import { askClaude } from "../utils/claudeAPI"
+import { askGemini } from "../utils/geminiAPI"
 import { usePortfolio } from "../store/portfolioStore"
 import { useWatchlist } from "../store/watchlistStore"
 
@@ -63,7 +63,7 @@ Use simple language and bullet points when needed.
 
     try {
 
-      const reply = await askClaude(
+      const reply = await askGemini(
         [...messages, userMsg],
         buildSystemPrompt()
       )

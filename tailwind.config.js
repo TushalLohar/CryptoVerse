@@ -60,10 +60,6 @@ export default {
           "0%": { backgroundColor: "rgba(244,63,94,0.15)" },
           "100%": { backgroundColor: "transparent" },
         },
-         "fadeUp": {
-        '0%': { opacity: '0', transform: 'translateY(6px)' },
-        '100%': { opacity: '1', transform: 'translateY(0)' }
-      }
       },
 
       animation: {
@@ -73,10 +69,10 @@ export default {
         "flash-up": "flashUp 0.6s ease",
         "flash-down": "flashDown 0.6s ease",
         "spin-slow": "spin 2s linear infinite",
-        "fadeUp": 'fadeUp 0.25s ease-out'
+        fadeUp: "fadeUp 0.25s ease-out",
       },
     },
   },
 
   plugins: [],
-}
+};

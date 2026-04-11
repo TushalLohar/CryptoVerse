@@ -65,13 +65,12 @@ export const fetchMarkets = async ({
   signal,
   fresh = false,
 } = {}) => {
-
   if (isQuotaLow() && currency === "usd" && !category) {
-    const fallbackData = await fetchCoinCapMarkets(perPage * page)
-    const slice = fallbackData.slice((page - 1) * perPage, page * perPage)
+    const fallbackData = await fetchCoinCapMarkets(perPage * page);
+    const slice = fallbackData.slice((page - 1) * perPage, page * perPage);
 
     if (slice.length)
-      return { data: slice, error: null, status: 200, fromFallback: true }
+      return { data: slice, error: null, status: 200, fromFallback: true };
   }
 
   const params = {
@@ -81,11 +80,11 @@ export const fetchMarkets = async ({
     page,
     sparkline: true,
     price_change_percentage: "1h,24h,7d",
-  }
+  };
 
   if (category && category !== "All") {
-    const categoryId = CATEGORY_MAP[category]
-    if (categoryId) params.category = categoryId
+    const categoryId = CATEGORY_MAP[category];
+    if (categoryId) params.category = categoryId;
   }
 
   const result = await ApiClient("/coins/markets", {
@@ -93,18 +92,18 @@ export const fetchMarkets = async ({
     ttlKey: "markets",
     signal,
     fresh, // IMPORTANT
-  })
+  });
 
   if (result.status === 429 && currency === "usd") {
-    const fallbackData = await fetchCoinCapMarkets(perPage * page)
-    const slice = fallbackData.slice((page - 1) * perPage, page * perPage)
+    const fallbackData = await fetchCoinCapMarkets(perPage * page);
+    const slice = fallbackData.slice((page - 1) * perPage, page * perPage);
 
     if (slice.length)
-      return { data: slice, error: null, status: 200, fromFallback: true }
+      return { data: slice, error: null, status: 200, fromFallback: true };
   }
 
-  return result
-}
+  return result;
+};
 
 export const fetchGlobal = () => ApiClient("/global", { ttlKey: "global" });
 

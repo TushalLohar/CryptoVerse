@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 const CG_BASE = "/api/coingecko";
 export const TTL = {
   markets: 30_000,
@@ -26,7 +27,7 @@ const openDB = () => {
   _db = new Promise((resolve, reject) => {
     const request = indexedDB.open(IDB_NAME, 1);
 
-    request.onupgradeneeded = (event) => {
+    request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(IDB_STORE)) {
         db.createObjectStore(IDB_STORE, { keyPath: "k" });
@@ -64,7 +65,9 @@ const idbSet = async (key, value, timestamp) => {
 
     const tx = db.transaction(IDB_STORE, "readwrite");
     tx.objectStore(IDB_STORE).put({ k: key, v: value, ts: timestamp });
-  } catch {}
+  } catch {
+    /* empty */
+  }
 };
 const memCache = new Map();
 

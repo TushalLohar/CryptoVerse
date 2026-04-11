@@ -172,6 +172,7 @@ function AddAlertModal({ onClose }) {
 
   useEffect(() => {
     if (query.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
       return;
     }
@@ -207,7 +208,7 @@ function AddAlertModal({ onClose }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-bg-elevated border border-border-md rounded-xl p-6 w-[400px]"
+        className="bg-bg-elevated border border-border-md rounded-xl p-6 w-100"
       >
         <div className="flex justify-between items-center mb-5">
           <h2 className="font-bold text-text-1">Create Alert</h2>
