@@ -1,7 +1,4 @@
-/**
- * Production proxy for Google Generative Language API.
- * Set GEMINI_API_KEY or VITE_GEMINI_API_KEY in Vercel (prefer GEMINI_API_KEY).
- */
+
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
     return res.status(204).end();

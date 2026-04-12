@@ -98,7 +98,7 @@ export default function Header() {
             <BarChart2 size={15} className="text-white" strokeWidth={2.5} />
           </div>
           <span className="text-text-1 font-display font-extrabold text-[13px] tracking-widest uppercase">
-            CryptoTracker
+            CryptoVerse
           </span>
         </Link>
 
