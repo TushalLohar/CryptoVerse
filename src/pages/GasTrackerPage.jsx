@@ -6,7 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 // --- Helper Functions (Logic remains identical) ---
 async function fetchGasData() {
   try {
-    const res = await fetch('https://api.owlracle.info/v4/eth/gas?apikey=&accept=75')
+    const res = await fetch('https://api.owlracle.info/v4/eth/gas?accept=75')
     if (!res.ok) throw new Error('failed')
     return await res.json()
   } catch { return null }
@@ -58,7 +58,7 @@ export default function GasTrackerPage() {
   const [calcGwei,    setCalcGwei]    = useState('')
   const [calcOp,      setCalcOp]      = useState(GAS_OPERATIONS[0])
 
-  const load = async () => {
+  const handleRefresh = async () => {
     setLoading(true)
     const data = await fetchGasData()
     let gasData
@@ -82,9 +82,36 @@ export default function GasTrackerPage() {
   }
 
   useEffect(() => {
+    let ignore = false
+    async function load() {
+      const data = await fetchGasData()
+      if (ignore) return
+      let gasData
+      if (data?.speeds) {
+        const [slow, standard, fast, instant] = data.speeds
+        gasData = {
+          slow:     { maxFeePerGas: slow?.maxFeePerGas || 10 },
+          standard: { maxFeePerGas: standard?.maxFeePerGas || 15 },
+          fast:     { maxFeePerGas: fast?.maxFeePerGas || 20 },
+          instant:  { maxFeePerGas: instant?.maxFeePerGas || 25 },
+          baseFee:  data.baseFee || 12,
+        }
+      } else {
+        gasData = simulateGas()
+      }
+      setGas(gasData)
+      const baseGas = parseFloat(gasData.standard.maxFeePerGas)
+      setHistory(Array.from({ length: 60 }, (_, i) => generateHistoryPoint(i, baseGas)))
+      setLastUpdated(new Date())
+      setLoading(false)
+    }
+
     load()
     const interval = setInterval(load, 15_000)
-    return () => clearInterval(interval)
+    return () => {
+      ignore = true
+      clearInterval(interval)
+    }
   }, [])
 
   useEffect(() => {
@@ -127,7 +154,7 @@ export default function GasTrackerPage() {
           <div className={`px-3.5 py-1.5 rounded-full border text-xs font-bold ${networkStatus.color} ${networkStatus.bg} ${networkStatus.border}`}>
             {networkStatus.label} Gas
           </div>
-          <button onClick={load} className="flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg border border-[var(--border-md)] bg-transparent text-[var(--text2)] text-xs font-semibold cursor-pointer">
+          <button onClick={handleRefresh} className="flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg border border-[var(--border-md)] bg-transparent text-[var(--text2)] text-xs font-semibold cursor-pointer">
             <RefreshCw size={12} /> Refresh
           </button>
         </div>

@@ -211,7 +211,10 @@ function AddHoldingModal({ onClose }) {
   const [step, setStep] = useState(1)
 
   useEffect(() => {
-    if (query.length < 2) { setResults([]); return }
+    if (query.length < 2) {
+      queueMicrotask(() => setResults([]))
+      return
+    }
     const timer = setTimeout(async () => {
       setSearching(true)
       const { data } = await fetchSearch(query)

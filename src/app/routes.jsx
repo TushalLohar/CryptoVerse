@@ -1,25 +1,27 @@
+import { lazy } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import AppLayout            from '../layout/AppLayout'
-import MarketPage           from '../features/MarketPage'
-import CoinDetailPage       from '../features/CoinDetailPage'
-import WatchlistPage        from '../pages/WatchlistPage'
-import TrendingPage         from '../pages/TrendingPage'
-import GainersLosersPage    from '../pages/GainersLosersPage'
-import PortfolioPage        from '../pages/PortfolioPage'
-import AiChatPage           from '../pages/AiChatPage'
-import AlertsPage           from '../pages/AlertsPage'
-import ComparePage          from '../pages/ComparePage'
-import ScreenerPage         from '../pages/ScreenerPage'
-import HeatmapPage          from '../pages/HeatmapPage'
-import WhaleAlertsPage      from '../pages/WhaleAlertsPage'
-import GasTrackerPage       from '../pages/GasTrackerPage'
-import OnChainPage          from '../pages/OnChainPage'
-import DefiPage             from '../pages/DefiPage'
-import OrderBookPage        from '../pages/OrderBookPage'
-import ArbitrageScanner     from '../pages/ArbitrageScanner'
-import PricePredictionGame  from '../pages/PricePredictionGame'
-import BacktesterPage       from '../pages/BacktesterPage'
-import NotFoundPage         from '../pages/NotFoundPage'
+
+const MarketPage          = lazy(() => import('../features/MarketPage'))
+const CoinDetailPage      = lazy(() => import('../features/CoinDetailPage'))
+const WatchlistPage       = lazy(() => import('../pages/WatchlistPage'))
+const TrendingPage        = lazy(() => import('../pages/TrendingPage'))
+const GainersLosersPage   = lazy(() => import('../pages/GainersLosersPage'))
+const PortfolioPage       = lazy(() => import('../pages/PortfolioPage'))
+const AiChatPage          = lazy(() => import('../pages/AiChatPage'))
+const AlertsPage          = lazy(() => import('../pages/AlertsPage'))
+const ComparePage         = lazy(() => import('../pages/ComparePage'))
+const ScreenerPage        = lazy(() => import('../pages/ScreenerPage'))
+const HeatmapPage         = lazy(() => import('../pages/HeatmapPage'))
+const WhaleAlertsPage     = lazy(() => import('../pages/WhaleAlertsPage'))
+const GasTrackerPage      = lazy(() => import('../pages/GasTrackerPage'))
+const OnChainPage         = lazy(() => import('../pages/OnChainPage'))
+const DefiPage            = lazy(() => import('../pages/DefiPage'))
+const OrderBookPage       = lazy(() => import('../pages/OrderBookPage'))
+const ArbitrageScanner    = lazy(() => import('../pages/ArbitrageScanner'))
+const PricePredictionGame = lazy(() => import('../pages/PricePredictionGame'))
+const BacktesterPage      = lazy(() => import('../pages/BacktesterPage'))
+const NotFoundPage        = lazy(() => import('../pages/NotFoundPage'))
 
 export const router = createBrowserRouter([
   {

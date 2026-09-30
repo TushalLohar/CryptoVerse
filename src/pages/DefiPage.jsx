@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useNavigate }         from 'react-router-dom'
 import { usePageTitle }        from '../hooks/usePageTitle'
 import { Landmark, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
@@ -79,9 +78,9 @@ export default function DefiPage() {
   const [sortDir,     setSortDir]     = useState('desc')
   const [selected,    setSelected]    = useState(null)
 
-  const load = async () => {
+  const handleRefresh = async () => {
     setLoading(true)
-    const [defiData, global] = await Promise.all([fetchDefiProtocols(), fetchGlobalDefi()])
+    const [, global] = await Promise.all([fetchDefiProtocols(), fetchGlobalDefi()])
     const simData = simulateDefiData()
     setProtocols(simData)
     if (global) setGlobalData(global)
@@ -95,7 +94,26 @@ export default function DefiPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    let ignore = false
+    async function load() {
+      const [, global] = await Promise.all([fetchDefiProtocols(), fetchGlobalDefi()])
+      if (ignore) return
+      const simData = simulateDefiData()
+      setProtocols(simData)
+      if (global) setGlobalData(global)
+      else {
+        setGlobalData({
+          defi_market_cap: '86000000000',
+          trading_volume_24h: '5200000000',
+          defi_dominance: '4.2',
+        })
+      }
+      setLoading(false)
+    }
+    load()
+    return () => { ignore = true }
+  }, [])
 
   const handleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -126,7 +144,7 @@ export default function DefiPage() {
             <p className="text-[var(--text3)] text-[13px] mt-[2px]">Decentralized finance protocols ranked by TVL</p>
           </div>
         </div>
-        <button onClick={load} className="flex items-center gap-1.5 p-[7px_14px] rounded-lg border border-[var(--border-md)] bg-transparent text-[var(--text2)] text-xs font-semibold cursor-pointer">
+        <button onClick={handleRefresh} className="flex items-center gap-1.5 p-[7px_14px] rounded-lg border border-[var(--border-md)] bg-transparent text-[var(--text2)] text-xs font-semibold cursor-pointer">
           <RefreshCw size={12} /> Refresh
         </button>
       </div>

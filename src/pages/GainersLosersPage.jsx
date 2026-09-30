@@ -87,21 +87,28 @@ export default function GainersPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+          {error}
+        </div>
+      )}
+
       {/* Tabs */}
 
       <div className="flex gap-[4px] bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[10px] p-[4px] mb-5 w-fit">
 
-        {TABS.map(({ key, label, icon: Icon }) => {
-          const isActive = activeTab === key
+        {TABS.map((tab) => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.key
 
           return (
             <TabBtn
-              key={key}
-              label={label}
+              key={tab.key}
+              label={tab.label}
               icon={<Icon size={14} />}
               active={isActive}
-              color={key === "gainers" ? "var(--green)" : "var(--red)"}
-              onClick={() => setActiveTab(key)}
+              color={tab.key === "gainers" ? "var(--green)" : "var(--red)"}
+              onClick={() => setActiveTab(tab.key)}
             />
           )
         })}

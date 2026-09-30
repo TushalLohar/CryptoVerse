@@ -161,16 +161,23 @@ function CoinRow({ coin, currency, livePrice, onClick }) {
       return;
     }
 
+    let timer;
     if (livePrice != null && prevPriceRef.current != null) {
-      if (livePrice > prevPriceRef.current) setFlash("up");
+      if (livePrice > prevPriceRef.current) {
+        requestAnimationFrame(() => setFlash("up"));
+      }
+      if (livePrice < prevPriceRef.current) {
+        requestAnimationFrame(() => setFlash("down"));
+      }
 
-      if (livePrice < prevPriceRef.current) setFlash("down");
-
-      setTimeout(() => setFlash(null), 800);
+      timer = setTimeout(() => setFlash(null), 800);
     }
 
     prevPriceRef.current = livePrice ?? coin.current_price;
-  }, [livePrice, currency]);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [livePrice, currency, coin.current_price]);
 
   return (
     <div

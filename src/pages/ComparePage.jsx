@@ -219,7 +219,10 @@ function CoinSelector({ label, selected, onSelect, accentColor, loading }) {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    if (query.length < 2) { setResults([]); return }
+    if (query.length < 2) {
+      queueMicrotask(() => setResults([]))
+      return
+    }
     const timer = setTimeout(async () => {
       const { data } = await fetchSearch(query)
       setResults((data?.coins || []).slice(0, 6))
@@ -281,7 +284,7 @@ function CoinSelector({ label, selected, onSelect, accentColor, loading }) {
   )
 }
 
-function CoinHeader({ coin, coinData, color, align }) {
+function CoinHeader({ coin, color, align }) {
   return (
     <div className={`flex items-center gap-[10px] p-[14px_24px] ${align === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
       <img src={coin.thumb} alt={coin.name} className="w-9 h-9 rounded-full" />

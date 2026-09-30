@@ -55,10 +55,12 @@ export default function OrderBookPage() {
   useEffect(() => {
     wsDepthRef.current?.close()
     wsTradeRef.current?.close()
-    setAsks([])
-    setBids([])
-    setTrades([])
-    setConnected(false)
+    queueMicrotask(() => {
+      setAsks([])
+      setBids([])
+      setTrades([])
+      setConnected(false)
+    })
 
     const wsDepth = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@depth20@100ms`)
     wsDepthRef.current = wsDepth

@@ -8,7 +8,6 @@ import {
 
 // --- Helper Functions (Logic remains identical) ---
 function generateOnChainData() {
-  const now = Date.now()
   const btcHashRate    = 550 + Math.random() * 50
   const btcActiveAddr  = 800_000 + Math.random() * 200_000
   const btcTxCount     = 300_000 + Math.random() * 50_000
@@ -66,7 +65,6 @@ export default function OnChainPage() {
   const [lastUpdate, setLastUpdate] = useState(null)
 
   const load = () => {
-    setLoading(true)
     setTimeout(() => {
       setData(generateOnChainData())
       setLastUpdate(new Date())
@@ -99,7 +97,7 @@ export default function OnChainPage() {
           </div>
         </div>
         <button
-          onClick={load}
+          onClick={() => { setLoading(true); load(); }}
           className="flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg border border-[var(--border-md)] bg-transparent text-[var(--text2)] text-xs font-semibold cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
         >
           <RefreshCw size={12} />

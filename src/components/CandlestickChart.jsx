@@ -201,7 +201,7 @@ export default function CandlestickChart({
       ro.disconnect();
       chart.remove();
     };
-  }, []);
+  }, [height]);
 
   useEffect(() => {
     async function loadData() {

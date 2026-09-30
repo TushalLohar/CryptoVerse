@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 
 import Header from "./Header";
@@ -7,7 +8,18 @@ import { useAlertChecker } from "../hooks/useAlertChecker";
 import { useLivePrices } from "../hooks/useLivePrices";
 import { useMarketData } from "../hooks/useMarketData";
 
-import { TrendingUp, Flame, ArrowUpDown, Star, Wallet } from "lucide-react";
+import { TrendingUp, Flame, ArrowUpDown, Star, Wallet, Loader2 } from "lucide-react";
+
+function RouteLoader() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+      <Loader2 className="w-8 h-8 text-crypto-blue animate-spin" />
+      <span className="text-text-3 text-xs font-mono uppercase tracking-wider animate-pulse">
+        Loading...
+      </span>
+    </div>
+  );
+}
 
 const BOTTOM_NAV = [
   { to: "/", icon: TrendingUp, label: "Markets" },
@@ -37,7 +49,9 @@ export default function AppLayout() {
       <AlertWatcher />
 
       <main className="max-w-350 mx-auto px-5 pt-25 pb-20">
-        <Outlet />
+        <Suspense fallback={<RouteLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <BottomNav location={location} />

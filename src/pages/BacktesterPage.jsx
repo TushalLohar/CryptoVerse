@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { FlaskConical, Play } from "lucide-react";
 import {
@@ -272,38 +272,29 @@ export default function BacktesterPage() {
   const [overbought, setOverbought] = useState(70);
   const [ohlcv, setOhlcv] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [bhResult, setBhResult] = useState(null);
+  const { result, bhResult } = useMemo(() => {
+    if (!ohlcv) return { result: null, bhResult: null };
+    let res = null;
+    if (strategy === "buyhold") res = runBuyAndHold(ohlcv, capital);
+    else if (strategy === "ma")
+      res = runMACrossover(ohlcv, shortPeriod, longPeriod, capital);
+    else if (strategy === "rsi")
+      res = runRSIStrategy(ohlcv, oversold, overbought, capital);
 
-  const runStrategy = useCallback(
-    (data) => {
-      let res;
-      if (strategy === "buyhold") res = runBuyAndHold(data, capital);
-      else if (strategy === "ma")
-        res = runMACrossover(data, shortPeriod, longPeriod, capital);
-      else if (strategy === "rsi")
-        res = runRSIStrategy(data, oversold, overbought, capital);
-
-      setBhResult(runBuyAndHold(data, capital));
-      setResult(res);
-    },
-    [strategy, shortPeriod, longPeriod, oversold, overbought, capital],
-  );
+    return {
+      result: res,
+      bhResult: runBuyAndHold(ohlcv, capital),
+    };
+  }, [ohlcv, strategy, shortPeriod, longPeriod, oversold, overbought, capital]);
 
   const loadAndRun = async () => {
     setLoading(true);
-    setResult(null);
     const data = await fetchOHLCV(coin.id, days);
     const final =
       !data || data.length < 10 ? generateSyntheticOHLCV(days) : data;
     setOhlcv(final);
-    runStrategy(final);
     setLoading(false);
   };
-
-  useEffect(() => {
-    if (ohlcv) runStrategy(ohlcv);
-  }, [strategy, shortPeriod, longPeriod, oversold, overbought, capital]);
 
   return (
     <div className="animate-fadeUp">

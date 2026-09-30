@@ -43,7 +43,7 @@ export default function PricePredictionGame() {
 
   useEffect(() => {
     wsRef.current?.close();
-    setCurrentPrice(null);
+    queueMicrotask(() => setCurrentPrice(null));
     prevPriceRef.current = null;
 
     const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${activeCoin.binance}@trade`);

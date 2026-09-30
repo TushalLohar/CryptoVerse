@@ -199,7 +199,7 @@ export default function ScreenerPage() {
           <div className="divide-y divide-[var(--border)]">
             {loading
               ? Array.from({ length: 15 }).map((_, i) => <SkeletonRow key={i} />)
-              : filtered.map((coin, i) => (
+              : filtered.map((coin) => (
                 <ScreenerRow
                   key={coin.id}
                   coin={coin}

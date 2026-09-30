@@ -29,23 +29,18 @@ const COIN_IMAGES = {
 export default function WhaleAlertsPage() {
   usePageTitle("Whale Alerts");
 
-  const [txns, setTxns] = useState([]);
+  const [txns, setTxns] = useState(() =>
+    Array.from({ length: 20 }, (_, i) => generateWhaleTransaction(i)).sort(
+      (a, b) => b.timestamp - a.timestamp,
+    ),
+  );
   const [filter, setFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All Types");
   const [paused, setPaused] = useState(false);
   const [newCount, setNewCount] = useState(0);
 
-  const counterRef = useRef(0);
+  const counterRef = useRef(20);
   const intervalRef = useRef(null);
-
-  useEffect(() => {
-    const initial = Array.from({ length: 20 }, (_, i) =>
-      generateWhaleTransaction(i),
-    ).sort((a, b) => b.timestamp - a.timestamp);
-
-    setTxns(initial);
-    counterRef.current = 20;
-  }, []);
 
   useEffect(() => {
     intervalRef.current = setInterval(
